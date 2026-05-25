@@ -18,9 +18,13 @@ autoUpdater.autoInstallOnAppQuit = true; // install on next quit
 // ── Start Flask ────────────────────────────────────────────────────────────
 function startFlask() {
     const isPackaged = app.isPackaged;
+    const isWin      = process.platform === 'win32';
+    const serverBin  = isWin ? 'envault-server.exe' : 'envault-server';
     const pythonExe  = isPackaged
-        ? path.join(process.resourcesPath, 'envault-server')
-        : (process.platform === 'win32' ? 'python' : 'python3');
+        ? path.join(process.resourcesPath, serverBin)
+        : (isWin
+            ? path.join(__dirname, 'venv', 'Scripts', 'python.exe')
+            : path.join(__dirname, 'venv', 'bin', 'python3'));
 
     const args = isPackaged ? [] : [path.join(__dirname, 'run.py')];
 
@@ -46,26 +50,32 @@ function waitForFlask(retries = 30) {
 
 // ── Create BrowserWindow ───────────────────────────────────────────────────
 function createWindow() {
+    const isMac = process.platform === 'darwin';
     startNotificationPolling();
     mainWindow = new BrowserWindow({
         width: 1100,
         height: 720,
         minWidth: 800,
         minHeight: 540,
-        transparent: true,
-        backgroundColor: '#00000000',
-        vibrancy: 'fullscreen-ui',
-        visualEffectState: 'active',
-        titleBarStyle: 'hiddenInset',
-        trafficLightPosition: { x: 16, y: 16 },
-        frame: false,
+        transparent: isMac,
+        backgroundColor: isMac ? '#00000000' : '#0d0d0d',
+        ...(isMac ? {
+            vibrancy: 'fullscreen-ui',
+            visualEffectState: 'active',
+            titleBarStyle: 'hiddenInset',
+            trafficLightPosition: { x: 16, y: 16 },
+            frame: false,
+        } : {
+            frame: true,
+            titleBarStyle: 'default',
+        }),
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
         },
         icon: path.join(__dirname, 'static', 'icon.png'),
     });
-    mainWindow.setWindowButtonVisibility(true);
+    if (isMac) mainWindow.setWindowButtonVisibility(true);
     mainWindow.loadURL(`http://127.0.0.1:${PORT}/`);
 
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {

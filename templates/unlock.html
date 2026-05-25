@@ -30,6 +30,21 @@
                 <i class="fas fa-unlock me-2"></i>Unlock
             </button>
         </form>
+
+        <div class="d-flex justify-content-between mt-4" style="border-top:1px solid rgba(255,255,255,.07); padding-top:1rem;">
+            <a href="{{ url_for('auth.reset') }}"
+               style="font-size:.78rem; color:rgba(255,255,255,.35); text-decoration:none;"
+               onmouseover="this.style.color='rgba(231,76,60,.7)'"
+               onmouseout="this.style.color='rgba(255,255,255,.35)'">
+                <i class="fas fa-triangle-exclamation me-1"></i>Forgot password
+            </a>
+            <a href="{{ url_for('auth.unlock_with_code') }}"
+               style="font-size:.78rem; color:rgba(255,255,255,.35); text-decoration:none;"
+               onmouseover="this.style.color='rgba(255,255,255,.65)'"
+               onmouseout="this.style.color='rgba(255,255,255,.35)'">
+                <i class="fas fa-shield-halved me-1"></i>Use backup code
+            </a>
+        </div>
     </div>
 </div>
 {% endblock %}

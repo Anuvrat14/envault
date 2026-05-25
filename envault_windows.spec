@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-# Envault macOS ARM64 PyInstaller Spec
+# Envault Windows PyInstaller Spec
 
 import os
 REPO_ROOT = os.path.abspath(SPECPATH)
@@ -112,10 +112,11 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,
+    console=False,           # no console window on Windows
     disable_windowed_traceback=False,
     argv_emulation=False,
-    target_arch='arm64',
+    target_arch=None,        # native arch on the build runner
     codesign_identity=None,
     entitlements_file=None,
+    icon=os.path.join(REPO_ROOT, 'static', 'icon.ico'),
 )

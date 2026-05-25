@@ -1,6 +1,6 @@
 {
   "name": "envault",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Encrypted environment variable manager for developers",
   "author": "Anuvrat14",
   "main": "main.js",

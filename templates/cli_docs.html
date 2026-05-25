@@ -1,0 +1,548 @@
+{% extends "base.html" %}
+{% block title %}CLI Integration — Envault{% endblock %}
+
+{% block extra_css %}
+<style>
+.docs-wrap {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+}
+.docs-hero {
+    background: rgba(0,0,0,.28);
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 16px;
+    padding: 2.5rem 2.5rem 2rem;
+    margin-bottom: 2rem;
+}
+.docs-section {
+    background: rgba(0,0,0,.22);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 14px;
+    padding: 1.75rem 2rem;
+    margin-bottom: 1.25rem;
+}
+.docs-section-title {
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: rgba(255,255,255,.38);
+    margin-bottom: 1.25rem;
+    padding-bottom: .6rem;
+    border-bottom: 1px solid rgba(255,255,255,.07);
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+.cmd-block {
+    background: rgba(0,0,0,.45);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+}
+.cmd-block:last-child { margin-bottom: 0; }
+.cmd-signature {
+    font-size: .88rem;
+    color: rgba(255,255,255,.85);
+    margin-bottom: .3rem;
+}
+.cmd-desc {
+    font-size: .78rem;
+    color: rgba(255,255,255,.4);
+    margin-bottom: .65rem;
+}
+.cmd-example {
+    font-size: .8rem;
+    color: rgba(255,255,255,.55);
+    border-top: 1px solid rgba(255,255,255,.06);
+    padding-top: .55rem;
+    margin-top: .55rem;
+    line-height: 1.7;
+}
+.cmd-example .prompt { color: rgba(255,255,255,.25); }
+.cmd-example .kw     { color: #3498db; }
+.cmd-example .val    { color: #2ecc71; }
+.cmd-example .cmt    { color: rgba(255,255,255,.22); font-style: italic; }
+.step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: rgba(52,152,219,.15);
+    border: 1px solid rgba(52,152,219,.25);
+    border-radius: 50%;
+    font-size: .72rem;
+    color: #3498db;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+.step-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+.step-row:last-child { margin-bottom: 0; }
+.step-body { flex: 1; }
+.step-body h6 {
+    font-size: .88rem;
+    font-weight: 600;
+    margin-bottom: .35rem;
+    color: rgba(255,255,255,.85);
+}
+.step-body p {
+    font-size: .8rem;
+    color: rgba(255,255,255,.45);
+    margin: 0 0 .5rem;
+    line-height: 1.55;
+}
+.inline-code {
+    font-family: monospace;
+    font-size: .82rem;
+    background: rgba(255,255,255,.07);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 5px;
+    padding: .1rem .45rem;
+    color: rgba(255,255,255,.75);
+}
+.flag-table {
+    width: 100%;
+    font-size: .8rem;
+    border-collapse: collapse;
+}
+.flag-table th {
+    font-size: .68rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: rgba(255,255,255,.3);
+    padding: .4rem .6rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(255,255,255,.07);
+}
+.flag-table td {
+    padding: .55rem .6rem;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+    vertical-align: top;
+    color: rgba(255,255,255,.6);
+}
+.flag-table tr:last-child td { border-bottom: none; }
+.flag-table td:first-child {
+    font-family: monospace;
+    color: rgba(255,255,255,.8);
+    white-space: nowrap;
+}
+.notice {
+    display: flex;
+    gap: .75rem;
+    align-items: flex-start;
+    padding: .85rem 1rem;
+    border-radius: 9px;
+    font-size: .8rem;
+    line-height: 1.55;
+    margin-bottom: 1rem;
+}
+.notice.info    { background: rgba(52,152,219,.08);  border: 1px solid rgba(52,152,219,.18);  color: rgba(255,255,255,.55); }
+.notice.warning { background: rgba(154,125,10,.08);  border: 1px solid rgba(154,125,10,.2);   color: rgba(255,255,255,.55); }
+.notice i { margin-top: .1rem; flex-shrink: 0; }
+.notice.info i    { color: #3498db; }
+.notice.warning i { color: #9a7d0a; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="docs-wrap">
+
+    <!-- Back + Header -->
+    <div class="d-flex align-items-center gap-3 mb-4">
+        <a href="{{ url_for('auth.settings') }}" class="btn btn-icon">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <div>
+            <h4 class="mb-0" style="font-weight:600; letter-spacing:-.02em;">CLI Integration</h4>
+            <small style="color:rgba(255,255,255,.38); font-size:.78rem;">
+                Use your vault secrets directly in the terminal
+            </small>
+        </div>
+    </div>
+
+    <!-- Hero -->
+    <div class="docs-hero">
+        <div class="d-flex align-items-start gap-4">
+            <div style="font-size:2.5rem; color:rgba(255,255,255,.25); line-height:1;">
+                <i class="fas fa-terminal"></i>
+            </div>
+            <div>
+                <h5 style="font-weight:600; margin-bottom:.5rem;">The <code style="color:rgba(255,255,255,.8);">envault</code> CLI tool</h5>
+                <p style="font-size:.85rem; color:rgba(255,255,255,.5); margin:0; line-height:1.65;">
+                    A lightweight Python script that talks to your running Envault vault over
+                    <code class="inline-code">localhost</code>. Fetch individual secrets, inject an
+                    entire project's variables into any process, or write new values — all without
+                    ever touching a plaintext <code class="inline-code">.env</code> file on disk.
+                </p>
+                <div class="mt-3 d-flex gap-2 flex-wrap">
+                    <a href="{{ url_for('auth.download_cli_script') }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-download me-2"></i>Download CLI Script
+                    </a>
+                    <a href="{{ url_for('auth.settings') }}" class="btn btn-sm btn-outline-light">
+                        <i class="fas fa-key me-2"></i>Manage Token
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Installation -->
+    <div class="docs-section">
+        <div class="docs-section-title">
+            <i class="fas fa-wrench"></i> Installation
+        </div>
+
+        <div class="notice info">
+            <i class="fas fa-circle-info"></i>
+            <span>Python 3.8+ is required. The CLI uses only standard library modules — no <code class="inline-code">pip install</code> needed.</span>
+        </div>
+
+        <div class="step-row">
+            <div class="step-num">1</div>
+            <div class="step-body">
+                <h6>Download the CLI script</h6>
+                <p>Click the button above or use curl to download directly.</p>
+                <div class="cmd-block">
+                    <div class="cmd-example">
+                        <span class="cmt"># Using curl</span><br>
+                        <span class="kw">curl</span> -o envault {{ request.url_root }}cli/download
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="step-row">
+            <div class="step-num">2</div>
+            <div class="step-body">
+                <h6>Make it executable and install globally</h6>
+                <div class="cmd-block">
+                    <div class="cmd-example">
+                        <span class="kw">chmod</span> +x envault<br>
+                        <span class="kw">sudo mv</span> envault /usr/local/bin/envault
+                    </div>
+                </div>
+                <p style="margin-top:.5rem;">Or keep it local: <code class="inline-code">./envault</code></p>
+            </div>
+        </div>
+
+        <div class="step-row">
+            <div class="step-num">3</div>
+            <div class="step-body">
+                <h6>Generate and save your CLI token</h6>
+                <p>Go to Settings → CLI Integration, click <strong>Generate Token</strong>, then <strong>Download Token File</strong>.</p>
+                <div class="cmd-block">
+                    <div class="cmd-example">
+                        <span class="cmt"># Create the .envault directory and move the token file</span><br>
+                        <span class="kw">mkdir -p</span> ~/.envault<br>
+                        <span class="kw">mv</span> ~/Downloads/envault_cli_token ~/.envault/cli_token<br>
+                        <span class="kw">chmod</span> 600 ~/.envault/cli_token
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="step-row">
+            <div class="step-num">4</div>
+            <div class="step-body">
+                <h6>Verify the connection</h6>
+                <p>Make sure Envault is running and the vault is unlocked, then:</p>
+                <div class="cmd-block">
+                    <div class="cmd-example">
+                        <span class="prompt">$ </span><span class="kw">envault</span> status<br>
+                        <span class="val">Envault 1.1.0 — unlocked</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Commands -->
+    <div class="docs-section">
+        <div class="docs-section-title">
+            <i class="fas fa-list-ul"></i> Commands
+        </div>
+
+        <!-- status -->
+        <div class="cmd-block">
+            <div class="cmd-signature">envault <strong>status</strong></div>
+            <div class="cmd-desc">Check whether the vault is reachable and unlocked.</div>
+            <div class="cmd-example">
+                <span class="prompt">$ </span><span class="kw">envault</span> status<br>
+                <span class="val">Envault 1.1.0 — unlocked</span>
+            </div>
+        </div>
+
+        <!-- projects -->
+        <div class="cmd-block">
+            <div class="cmd-signature">envault <strong>projects</strong></div>
+            <div class="cmd-desc">List all projects in the vault with variable counts.</div>
+            <div class="cmd-example">
+                <span class="prompt">$ </span><span class="kw">envault</span> projects<br>
+                <span class="val">  My App Production     12 vars  Production environment<br>
+  My App Staging         9 vars<br>
+  Internal Tools         4 vars</span>
+            </div>
+        </div>
+
+        <!-- list -->
+        <div class="cmd-block">
+            <div class="cmd-signature">envault <strong>list</strong> &lt;project&gt;</div>
+            <div class="cmd-desc">List all variable keys in a project. Flagged variables show a risk level tag.</div>
+            <div class="cmd-example">
+                <span class="prompt">$ </span><span class="kw">envault</span> list "My App Production"<br>
+                <span class="val">  API_KEY<br>
+  DATABASE_URL<br>
+  JWT_SECRET<br>
+  STRIPE_KEY  <span style="color:#b7600a;">[high]</span><br>
+  WEBHOOK_SECRET</span>
+            </div>
+        </div>
+
+        <!-- get -->
+        <div class="cmd-block">
+            <div class="cmd-signature">envault <strong>get</strong> &lt;project&gt; &lt;KEY&gt;</div>
+            <div class="cmd-desc">Decrypt and print a single variable value. Pipe-friendly — outputs just the value.</div>
+            <div class="cmd-example">
+                <span class="prompt">$ </span><span class="kw">envault</span> get "My App" DATABASE_URL<br>
+                <span class="val">postgres://user:pass@localhost:5432/myapp</span><br>
+                <br>
+                <span class="cmt"># Capture in a shell variable</span><br>
+                <span class="kw">DB</span>=$(<span class="kw">envault</span> get "My App" DATABASE_URL)
+            </div>
+        </div>
+
+        <!-- set -->
+        <div class="cmd-block">
+            <div class="cmd-signature">envault <strong>set</strong> &lt;project&gt; &lt;KEY&gt; [value]</div>
+            <div class="cmd-desc">
+                Set or update a variable. Omit the value to be prompted securely (hidden input),
+                or pipe a value from stdin.
+            </div>
+            <div class="cmd-example">
+                <span class="cmt"># Inline value</span><br>
+                <span class="prompt">$ </span><span class="kw">envault</span> set "My App" API_KEY sk-abc123<br>
+                <span class="val">Set API_KEY</span><br>
+                <br>
+                <span class="cmt"># Read from stdin (pipe)</span><br>
+                <span class="prompt">$ </span><span class="kw">cat</span> private.key | <span class="kw">envault</span> set "My App" PRIVATE_KEY<br>
+                <br>
+                <span class="cmt"># Prompted (hidden) — good for CI setup</span><br>
+                <span class="prompt">$ </span><span class="kw">envault</span> set "My App" DB_PASSWORD<br>
+                <span class="val">Value for DB_PASSWORD: ****</span>
+            </div>
+        </div>
+
+        <!-- export -->
+        <div class="cmd-block">
+            <div class="cmd-signature">envault <strong>export</strong> &lt;project&gt; [--output &lt;file&gt;]</div>
+            <div class="cmd-desc">
+                Print all variables as <code class="inline-code">KEY=VALUE</code> lines.
+                Without <code class="inline-code">--output</code>, writes to stdout — useful for piping.
+            </div>
+            <div class="cmd-example">
+                <span class="cmt"># Print to terminal</span><br>
+                <span class="prompt">$ </span><span class="kw">envault</span> export "My App"<br>
+                <span class="val">API_KEY=sk-abc123<br>
+DATABASE_URL=postgres://...</span><br>
+                <br>
+                <span class="cmt"># Write to a file</span><br>
+                <span class="prompt">$ </span><span class="kw">envault</span> export "My App" --output .env<br>
+                <span class="val">Exported 12 variables → .env</span>
+            </div>
+        </div>
+
+        <!-- inject -->
+        <div class="cmd-block">
+            <div class="cmd-signature">envault <strong>inject</strong> &lt;project&gt; -- &lt;command&gt; [args...]</div>
+            <div class="cmd-desc">
+                Run any command with the project's variables automatically injected as environment variables.
+                This is the recommended pattern — your code reads from <code class="inline-code">process.env</code> as normal,
+                but the values never touch disk.
+            </div>
+            <div class="cmd-example">
+                <span class="cmt"># Start a dev server with vault vars</span><br>
+                <span class="prompt">$ </span><span class="kw">envault</span> inject "My App" -- npm run dev<br>
+                <br>
+                <span class="cmt"># Run a Python script</span><br>
+                <span class="prompt">$ </span><span class="kw">envault</span> inject "My App" -- python manage.py migrate<br>
+                <br>
+                <span class="cmt"># Run a Docker build with secrets</span><br>
+                <span class="prompt">$ </span><span class="kw">envault</span> inject "My App" -- docker compose up
+            </div>
+        </div>
+    </div>
+
+    <!-- Shell & CI Integration -->
+    <div class="docs-section">
+        <div class="docs-section-title">
+            <i class="fas fa-code"></i> Shell &amp; Project Integration
+        </div>
+
+        <h6 style="font-size:.85rem; font-weight:600; margin-bottom:.75rem; color:rgba(255,255,255,.75);">
+            Replace your <code class="inline-code">.env</code> loader
+        </h6>
+        <p style="font-size:.8rem; color:rgba(255,255,255,.45); margin-bottom:.9rem; line-height:1.6;">
+            Instead of committing a <code class="inline-code">.env</code> file or running <code class="inline-code">source .env</code>,
+            prefix any command with <code class="inline-code">envault inject</code>.
+        </p>
+
+        <div class="cmd-block mb-3">
+            <div style="font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; color:rgba(255,255,255,.3); margin-bottom:.5rem;">package.json</div>
+            <div class="cmd-example">
+<span style="color:rgba(255,255,255,.3);">{
+  "scripts": {</span>
+    "<span class="kw">dev</span>": "<span class="val">envault inject \"My App\" -- next dev</span>",
+    "<span class="kw">build</span>": "<span class="val">envault inject \"My App\" -- next build</span>",
+    "<span class="kw">test</span>": "<span class="val">envault inject \"My App\" -- jest</span>"
+<span style="color:rgba(255,255,255,.3);">  }
+}</span>
+            </div>
+        </div>
+
+        <div class="cmd-block mb-3">
+            <div style="font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; color:rgba(255,255,255,.3); margin-bottom:.5rem;">Makefile</div>
+            <div class="cmd-example">
+<span class="kw">run</span>:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="val">envault inject "My App" -- go run ./cmd/server<br><br>
+</span><span class="kw">migrate</span>:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="val">envault inject "My App" -- go run ./cmd/migrate</span>
+            </div>
+        </div>
+
+        <div class="cmd-block">
+            <div style="font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; color:rgba(255,255,255,.3); margin-bottom:.5rem;">Shell alias (add to ~/.zshrc or ~/.bashrc)</div>
+            <div class="cmd-example">
+                <span class="cmt"># Short alias for your main project</span><br>
+                <span class="kw">alias</span> <span class="val">dev</span>='envault inject "My App" --'<br>
+                <br>
+                <span class="cmt"># Then just:</span><br>
+                <span class="prompt">$ </span><span class="val">dev</span> npm start<br>
+                <span class="prompt">$ </span><span class="val">dev</span> python app.py
+            </div>
+        </div>
+    </div>
+
+    <!-- Environment Variables -->
+    <div class="docs-section">
+        <div class="docs-section-title">
+            <i class="fas fa-sliders"></i> Configuration
+        </div>
+
+        <table class="flag-table">
+            <thead>
+                <tr>
+                    <th>Variable</th>
+                    <th>Default</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>ENVAULT_TOKEN</td>
+                    <td style="font-family:monospace; color:rgba(255,255,255,.4);">~/.envault/cli_token</td>
+                    <td>Override the CLI token. Useful in CI or Docker.</td>
+                </tr>
+                <tr>
+                    <td>ENVAULT_URL</td>
+                    <td style="font-family:monospace; color:rgba(255,255,255,.4);">http://127.0.0.1:5177</td>
+                    <td>Override the server URL if you've changed the port.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Security Notes -->
+    <div class="docs-section">
+        <div class="docs-section-title">
+            <i class="fas fa-shield-halved"></i> Security Notes
+        </div>
+
+        <div class="notice warning">
+            <i class="fas fa-triangle-exclamation"></i>
+            <span>
+                <strong style="color:rgba(255,255,255,.7);">The vault must be unlocked</strong> for CLI commands to work.
+                If the app is locked (or not running), commands will fail immediately — your secrets are never accessible without the master password.
+            </span>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:.6rem; font-size:.8rem; color:rgba(255,255,255,.5); line-height:1.6;">
+            <div><i class="fas fa-check me-2" style="color:#1e7e4e;"></i>
+                All API traffic stays on <code class="inline-code">localhost</code> — nothing leaves your machine.
+            </div>
+            <div><i class="fas fa-check me-2" style="color:#1e7e4e;"></i>
+                The token file should be <code class="inline-code">chmod 600</code> (owner read-only).
+                Anyone with the token can read your vault while it's unlocked.
+            </div>
+            <div><i class="fas fa-check me-2" style="color:#1e7e4e;"></i>
+                Regenerating the token immediately invalidates the old one.
+                Do this if the token file is ever accidentally exposed.
+            </div>
+            <div><i class="fas fa-check me-2" style="color:#1e7e4e;"></i>
+                <code class="inline-code">envault inject</code> injects variables into a subprocess environment only — they are never written to disk or logged.
+            </div>
+            <div><i class="fas fa-check me-2" style="color:#1e7e4e;"></i>
+                Do not commit your token to <code class="inline-code">.env</code>, <code class="inline-code">dotfiles</code>, or any repository.
+                Add <code class="inline-code">~/.envault/</code> to your global <code class="inline-code">.gitignore</code>.
+            </div>
+        </div>
+
+        <div class="cmd-block mt-3">
+            <div style="font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; color:rgba(255,255,255,.3); margin-bottom:.5rem;">~/.gitignore_global</div>
+            <div class="cmd-example">
+                <span class="val">.envault/</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Troubleshooting -->
+    <div class="docs-section">
+        <div class="docs-section-title">
+            <i class="fas fa-bug"></i> Troubleshooting
+        </div>
+
+        <table class="flag-table">
+            <thead>
+                <tr>
+                    <th>Error</th>
+                    <th>Cause &amp; Fix</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Cannot connect to Envault</td>
+                    <td>The app isn't running. Open Envault and unlock the vault first.</td>
+                </tr>
+                <tr>
+                    <td>Vault is locked</td>
+                    <td>App is running but vault is locked. Click Unlock in the app.</td>
+                </tr>
+                <tr>
+                    <td>Invalid token</td>
+                    <td>Wrong token or regenerated since last download. Re-download from Settings.</td>
+                </tr>
+                <tr>
+                    <td>CLI token not generated</td>
+                    <td>Go to Settings → CLI Integration → Generate Token.</td>
+                </tr>
+                <tr>
+                    <td>No CLI token found</td>
+                    <td>Token file missing. Download it from Settings and save to <code class="inline-code">~/.envault/cli_token</code>.</td>
+                </tr>
+                <tr>
+                    <td>Project not found</td>
+                    <td>Project name is case-insensitive but must match exactly. Run <code class="inline-code">envault projects</code> to see exact names.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Backup Code — Envault{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+    <div class="auth-card">
+        <div class="auth-icon mb-4">
+            <i class="fas fa-shield-halved"></i>
+        </div>
+        <h4 class="text-center mb-1">Enter Backup Code</h4>
+        <p class="text-center mb-4" style="font-size:.875rem; color:rgba(255,255,255,.5);">
+            Enter one of your 8-character recovery codes.
+            Each code can only be used once.
+        </p>
+
+        {% if error %}
+        <div class="alert alert-danger py-2 px-3 mb-3" style="font-size:.875rem;">
+            <i class="fas fa-exclamation-circle me-2"></i>{{ error }}
+        </div>
+        {% endif %}
+
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mb-4">
+                <label class="form-label">Backup Code</label>
+                <input type="text" class="form-control vault-input text-center"
+                       name="code" placeholder="XXXXXXXX"
+                       autocomplete="off" autocorrect="off" autocapitalize="characters"
+                       spellcheck="false" maxlength="8"
+                       style="font-family:'SF Mono',monospace; font-size:1.3rem; letter-spacing:.2em;"
+                       autofocus required>
+                <div class="hint text-center mt-2">8 characters, letters and numbers only</div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-unlock me-2"></i>Recover Access
+            </button>
+        </form>
+
+        <div class="text-center mt-3">
+            <a href="{{ url_for('auth.unlock') }}"
+               style="font-size:.8rem; color:rgba(255,255,255,.35); text-decoration:none;">
+                ← Back to unlock
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

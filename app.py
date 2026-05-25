@@ -35,12 +35,16 @@ def create_app():
     # Jinja globals
     from datetime import datetime, timezone
     app.jinja_env.globals['now_utc'] = lambda: datetime.now(timezone.utc)
+    app.jinja_env.globals['app_version'] = _get_version()
 
     # Blueprints
     from routes.auth     import auth_bp
     from routes.projects import projects_bp
+    from routes.api      import api_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(projects_bp)
+    app.register_blueprint(api_bp)
+    csrf.exempt(api_bp)   # API uses token auth, not CSRF cookies
 
     # Create tables + migrate existing DBs
     with app.app_context():
@@ -59,6 +63,8 @@ def _migrate_db(app):
         ('env_variables', 'last_rotated',  'DATETIME'),
         ('env_variables', 'risk_level',    'VARCHAR(10)'),
         ('env_variables', 'risk_notes',    'TEXT'),
+        ('app_config',    'backup_codes',  'TEXT'),
+        ('app_config',    'cli_token',     'VARCHAR(128)'),
     ]
     with db.engine.connect() as conn:
         for table, column, col_type in new_columns:
@@ -67,6 +73,17 @@ def _migrate_db(app):
                 conn.commit()
             except Exception:
                 pass  # Column already exists
+
+
+def _get_version() -> str:
+    """Read version from package.json, fallback to hardcoded string."""
+    import json
+    try:
+        pkg = os.path.join(os.path.dirname(__file__), 'package.json')
+        with open(pkg) as f:
+            return json.load(f).get('version', '1.1.0')
+    except Exception:
+        return '1.1.0'
 
 
 def _get_or_create_secret(data_dir: str) -> str:

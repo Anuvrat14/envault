@@ -64,6 +64,50 @@ def decrypt_value(encrypted_b64: str, key: bytes) -> str:
         raise ValueError('Decryption failed — wrong master password or corrupted data.')
 
 
+def wrap_key_with_code(enc_key: bytes, code: str) -> dict:
+    """
+    Encrypt the master encryption key with a backup code.
+    Returns a dict with salt/nonce/wrapped — safe to store in DB.
+    Uses only 100k iterations (backup codes are random, not user passwords).
+    """
+    salt = os.urandom(16)
+    kdf  = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt,
+                      iterations=100_000, backend=default_backend())
+    code_key   = kdf.derive(code.encode('utf-8'))
+    aesgcm     = AESGCM(code_key)
+    nonce      = os.urandom(12)
+    wrapped    = aesgcm.encrypt(nonce, enc_key, None)
+    return {
+        'salt':    base64.b64encode(salt).decode(),
+        'nonce':   base64.b64encode(nonce).decode(),
+        'wrapped': base64.b64encode(wrapped).decode(),
+    }
+
+
+def unwrap_key_with_code(data: dict, code: str) -> bytes:
+    """
+    Decrypt a wrapped master encryption key using a backup code.
+    Raises ValueError on failure (wrong code / tampered data).
+    """
+    try:
+        salt    = base64.b64decode(data['salt'])
+        nonce   = base64.b64decode(data['nonce'])
+        wrapped = base64.b64decode(data['wrapped'])
+        kdf     = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt,
+                              iterations=100_000, backend=default_backend())
+        code_key = kdf.derive(code.encode('utf-8'))
+        aesgcm   = AESGCM(code_key)
+        return aesgcm.decrypt(nonce, wrapped, None)
+    except Exception:
+        raise ValueError('Invalid backup code.')
+
+
+def generate_backup_codes(n: int = 8) -> list:
+    """Generate n random 8-character alphanumeric backup codes (no ambiguous chars)."""
+    charset = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'  # no 0/O/1/I
+    return [''.join(charset[b % len(charset)] for b in os.urandom(8)) for _ in range(n)]
+
+
 def hash_password(password: str, salt: bytes) -> str:
     """
     Hash the master password for verification storage.
