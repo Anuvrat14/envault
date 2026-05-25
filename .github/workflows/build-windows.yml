@@ -52,6 +52,9 @@ jobs:
       - name: Upload Windows artifacts to release
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        shell: pwsh
         run: |
           $tag = if ("${{ github.event_name }}" -eq "workflow_dispatch") { "${{ github.event.inputs.tag }}" } else { "${{ github.ref_name }}" }
-          gh release upload $tag dist\Envault-Setup-*.exe dist\latest.yml --clobber
+          $installer = Get-ChildItem dist -Filter "*.exe" | Select-Object -First 1 -ExpandProperty FullName
+          Write-Host "Uploading $installer to release $tag"
+          gh release upload $tag $installer dist\latest.yml --clobber
