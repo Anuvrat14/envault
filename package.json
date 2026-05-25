@@ -28,39 +28,32 @@
       "templates/**/*",
       "package.json"
     ],
-    "extraResources": [
-      {
-        "from": "dist/envault-server",
-        "to": "envault-server"
-      }
-    ],
+    "extraResources": [],
     "mac": {
       "category": "public.app-category.developer-tools",
+      "extraResources": [
+        { "from": "dist/envault-server", "to": "envault-server" }
+      ],
       "target": [
         {
           "target": "dmg",
-          "arch": [
-            "arm64",
-            "x64"
-          ]
+          "arch": ["arm64", "x64"]
         },
         {
           "target": "zip",
-          "arch": [
-            "arm64",
-            "x64"
-          ]
+          "arch": ["arm64", "x64"]
         }
       ],
       "icon": "static/icon.icns"
     },
     "win": {
+      "extraResources": [
+        { "from": "dist/envault-server.exe", "to": "envault-server.exe" }
+      ],
       "target": [
         {
           "target": "nsis",
-          "arch": [
-            "x64"
-          ]
+          "arch": ["x64"]
         }
       ],
       "icon": "static/icon.ico"
