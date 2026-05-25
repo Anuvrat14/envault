@@ -11,7 +11,7 @@
     --border:       rgba(255, 255, 255, 0.06);
     --border-md:    rgba(255, 255, 255, 0.10);
     --text:         rgba(255, 255, 255, 1.00);
-    --muted:        rgba(255, 255, 255, 0.85);
+    --muted:        rgba(255, 255, 255, 0.90);
     --primary:      rgba(140, 190, 255, 1.00);
     --primary-glow: rgba(100, 160, 255, 0.18);
     --danger:       rgba(231, 76, 60, 0.85);
@@ -447,6 +447,27 @@ code {
     color: var(--text);
     font-size: .825rem;
     border-radius: 9px;
+}
+
+/* ── Bootstrap overrides — force all muted/secondary text bright ── */
+.text-muted,
+.text-secondary,
+small.text-muted,
+p.text-muted,
+span.text-muted,
+label.text-muted,
+div.text-muted {
+    color: rgba(255, 255, 255, 0.88) !important;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+.var-count {
+    color: rgba(255, 255, 255, 0.90) !important;
+}
+
+.project-name,
+.project-desc {
+    color: rgba(255, 255, 255, 0.95) !important;
 }
 
 /* ── Scrollbar ──────────────────────────────────────────── */
