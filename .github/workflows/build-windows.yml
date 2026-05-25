@@ -79,16 +79,20 @@ jobs:
 
           # Upload installer (use curl.exe — handles large files reliably)
           Write-Host "Uploading installer..."
-          curl.exe -s -S -X POST "${uploadBase}?name=Envault-Setup-1.2.0.exe" `
+          $result = curl.exe --fail -w "`nHTTP_STATUS:%{http_code}" -X POST "${uploadBase}?name=Envault-Setup-1.2.0.exe" `
             -H "Authorization: Bearer $env:GH_TOKEN" `
             -H "Content-Type: application/octet-stream" `
             --data-binary "@$dest"
+          Write-Host $result
+          if ($LASTEXITCODE -ne 0) { throw "Installer upload failed" }
 
           # Upload latest.yml
           Write-Host "Uploading latest.yml..."
-          curl.exe -s -S -X POST "${uploadBase}?name=latest.yml" `
+          $result2 = curl.exe --fail -w "`nHTTP_STATUS:%{http_code}" -X POST "${uploadBase}?name=latest.yml" `
             -H "Authorization: Bearer $env:GH_TOKEN" `
             -H "Content-Type: text/yaml" `
             --data-binary "@dist\latest.yml"
+          Write-Host $result2
+          if ($LASTEXITCODE -ne 0) { throw "latest.yml upload failed" }
 
           Write-Host "Done."
