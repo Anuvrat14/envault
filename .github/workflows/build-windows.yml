@@ -47,12 +47,22 @@ jobs:
       - name: Build Windows installer
         run: npx electron-builder --win --publish never
 
+      - name: List dist folder
+        shell: pwsh
+        run: Get-ChildItem dist | Format-Table Name, Length
+
       - name: Upload Windows artifacts to release
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         shell: pwsh
         run: |
           $tag = if ("${{ github.event_name }}" -eq "workflow_dispatch") { "${{ github.event.inputs.tag }}" } else { "${{ github.ref_name }}" }
-          $installer = Get-ChildItem dist -Filter "*.exe" | Select-Object -First 1 -ExpandProperty FullName
-          Write-Host "Uploading $installer to release $tag"
-          gh release upload $tag $installer dist\latest.yml --clobber
+          $installer = Get-ChildItem dist -Filter "*.exe" | Where-Object { $_.Name -notlike "*envault-server*" } | Select-Object -First 1 -ExpandProperty FullName
+          $yml = Get-ChildItem dist -Filter "*.yml" | Select-Object -First 1 -ExpandProperty FullName
+          Write-Host "Installer: $installer"
+          Write-Host "YML: $yml"
+          if ($yml) {
+            gh release upload $tag $installer $yml --clobber
+          } else {
+            gh release upload $tag $installer --clobber
+          }
