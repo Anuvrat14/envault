@@ -385,3 +385,275 @@ def notification_check():
         })
 
     return jsonify({'notifications': notifs})
+
+
+# --------------------------------------------------------------------------- #
+# Security Overview
+# --------------------------------------------------------------------------- #
+
+@projects_bp.route('/security')
+@require_unlock
+def security_overview():
+    from math import log2
+
+    all_vars     = EnvVariable.query.all()
+    all_projects = Project.query.order_by(Project.name).all()
+    now          = datetime.now(timezone.utc)
+
+    # ── Per-variable expiry helpers ────────────────────────────────────────
+    def _exp(v):
+        if not v.expires_at: return None
+        e = v.expires_at
+        return e.replace(tzinfo=timezone.utc) if e.tzinfo is None else e
+
+    # ── Risk counts ────────────────────────────────────────────────────────
+    risk_counts = {'critical': 0, 'high': 0, 'medium': 0, 'low': 0, 'none': 0, 'dismissed': 0}
+    for v in all_vars:
+        rl = v.risk_level or 'none'
+        risk_counts[rl] = risk_counts.get(rl, 0) + 1
+
+    # ── Expiry stats ───────────────────────────────────────────────────────
+    expired_count   = sum(1 for v in all_vars if _exp(v) and _exp(v) < now)
+    expiring_7      = sum(1 for v in all_vars if _exp(v) and now <= _exp(v) <= now + timedelta(days=7))
+    expiring_30     = sum(1 for v in all_vars if _exp(v) and now <= _exp(v) <= now + timedelta(days=30))
+    expiring_60     = sum(1 for v in all_vars if _exp(v) and now <= _exp(v) <= now + timedelta(days=60))
+    expiring_90     = sum(1 for v in all_vars if _exp(v) and now <= _exp(v) <= now + timedelta(days=90))
+    no_expiry_count = sum(1 for v in all_vars if not v.expires_at)
+    has_expiry      = len(all_vars) - no_expiry_count
+
+    # ── Overall security score ─────────────────────────────────────────────
+    def _score(var_list):
+        if not var_list: return 100
+        weights = {'critical': 28, 'high': 16, 'medium': 7, 'low': 2}
+        penalty = 0
+        for v in var_list:
+            penalty += weights.get(v.risk_level or 'none', 0)
+            e = _exp(v)
+            if e:
+                if e < now:              penalty += 12
+                elif (e - now).days <= 7: penalty += 6
+        avg = penalty / len(var_list)
+        return max(0, min(100, round(100 - avg)))
+
+    overall_score = _score(all_vars)
+
+    # ── Radar dimensions (0–100 each) ──────────────────────────────────────
+    total = len(all_vars) or 1
+
+    # 1. Credential Strength — % of vars with no entropy/length issues
+    entropy_issues = sum(1 for v in all_vars
+                         if v.risk_notes and ('entropy' in v.risk_notes or 'chars' in v.risk_notes))
+    credential_strength = round(100 * (1 - entropy_issues / total))
+
+    # 2. Value Hygiene — % without weak/placeholder values
+    hygiene_issues = sum(1 for v in all_vars
+                         if v.risk_notes and ('weak' in v.risk_notes or 'placeholder' in v.risk_notes
+                                              or 'default' in v.risk_notes))
+    value_hygiene = round(100 * (1 - hygiene_issues / total))
+
+    # 3. Rotation Coverage — % of vars with expiry set
+    rotation_coverage = round(100 * has_expiry / total)
+
+    # 4. No Live Keys — % without cloud key detection
+    live_key_issues = sum(1 for v in all_vars
+                          if v.risk_notes and ('live' in v.risk_notes.lower()
+                                               or 'aws' in v.risk_notes.lower()
+                                               or 'github' in v.risk_notes.lower()
+                                               or 'stripe' in v.risk_notes.lower()
+                                               or 'openai' in v.risk_notes.lower()
+                                               or 'slack' in v.risk_notes.lower()
+                                               or 'google' in v.risk_notes.lower()))
+    no_live_keys = round(100 * (1 - live_key_issues / total))
+
+    # 5. Format Compliance — % of URL vars passing format check
+    format_issues = sum(1 for v in all_vars
+                        if v.risk_notes and 'url' in v.risk_notes.lower())
+    format_compliance = round(100 * (1 - format_issues / total))
+
+    # 6. Expiry Hygiene — % not expired and not expiring soon
+    expiry_bad = expired_count + expiring_7
+    expiry_hygiene = round(100 * (1 - expiry_bad / total))
+
+    radar_data = [
+        credential_strength, value_hygiene, rotation_coverage,
+        no_live_keys, format_compliance, expiry_hygiene
+    ]
+
+    # ── Per-project scores ─────────────────────────────────────────────────
+    project_scores = []
+    for p in all_projects:
+        vs = [v for v in all_vars if v.project_id == p.id]
+        project_scores.append({
+            'id':       p.id,
+            'name':     p.name,
+            'score':    _score(vs),
+            'total':    len(vs),
+            'critical': sum(1 for v in vs if v.risk_level == 'critical'),
+            'high':     sum(1 for v in vs if v.risk_level == 'high'),
+            'medium':   sum(1 for v in vs if v.risk_level == 'medium'),
+            'color':    p.color,
+        })
+    project_scores.sort(key=lambda x: x['score'])
+
+    # ── Risk type breakdown ────────────────────────────────────────────────
+    type_counts = {
+        'Weak/Default': sum(1 for v in all_vars if v.risk_notes and
+                           ('weak' in v.risk_notes or 'default' in v.risk_notes)),
+        'Low Entropy':  sum(1 for v in all_vars if v.risk_notes and 'entropy' in v.risk_notes),
+        'Short Secret': sum(1 for v in all_vars if v.risk_notes and 'chars' in v.risk_notes),
+        'Live Key':     sum(1 for v in all_vars if v.risk_notes and
+                           any(x in v.risk_notes.lower() for x in ['aws','github','stripe','openai','slack','google','live'])),
+        'Placeholder':  sum(1 for v in all_vars if v.risk_notes and 'placeholder' in v.risk_notes),
+        'Format':       sum(1 for v in all_vars if v.risk_notes and 'url' in v.risk_notes.lower()),
+        'Expired':      expired_count,
+    }
+
+    # ── All flagged variables ──────────────────────────────────────────────
+    flagged = [v for v in all_vars
+               if (v.risk_level and v.risk_level not in ('none', 'dismissed', None))
+               or ((_exp(v) and _exp(v) < now))]
+    flagged.sort(key=lambda v: (
+        {'critical': 0, 'high': 1, 'medium': 2, 'low': 3}.get(v.risk_level or 'none', 4)
+    ))
+
+    return render_template(
+        'security.html',
+        overall_score    = overall_score,
+        all_project_list = all_projects,
+        total_vars       = len(all_vars),
+        risk_counts      = risk_counts,
+        expired_count    = expired_count,
+        expiring_7       = expiring_7,
+        expiring_30      = expiring_30,
+        expiring_60      = expiring_60,
+        expiring_90      = expiring_90,
+        no_expiry_count  = no_expiry_count,
+        has_expiry       = has_expiry,
+        radar_data       = radar_data,
+        project_scores   = project_scores,
+        type_counts      = type_counts,
+        flagged          = flagged,
+        all_projects     = {p.id: p.name for p in all_projects},
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Per-project Security Report
+# --------------------------------------------------------------------------- #
+
+@projects_bp.route('/projects/<int:project_id>/security')
+@require_unlock
+def project_security(project_id):
+    project  = Project.query.get_or_404(project_id)
+    vars_    = project.variables          # already ordered by key
+    now      = datetime.now(timezone.utc)
+
+    def _exp(v):
+        if not v.expires_at: return None
+        e = v.expires_at
+        return e.replace(tzinfo=timezone.utc) if e.tzinfo is None else e
+
+    # ── Score ────────────────────────────────────────────────────────────────
+    weights = {'critical': 28, 'high': 16, 'medium': 7, 'low': 2}
+    penalty = 0
+    for v in vars_:
+        penalty += weights.get(v.risk_level or 'none', 0)
+        e = _exp(v)
+        if e:
+            if e < now:               penalty += 12
+            elif (e - now).days <= 7: penalty += 6
+    score = max(0, min(100, round(100 - penalty / len(vars_)))) if vars_ else 100
+
+    # ── Risk counts ──────────────────────────────────────────────────────────
+    risk_counts = {'critical': 0, 'high': 0, 'medium': 0, 'low': 0, 'none': 0, 'dismissed': 0}
+    for v in vars_:
+        rl = v.risk_level or 'none'
+        risk_counts[rl] = risk_counts.get(rl, 0) + 1
+
+    total = len(vars_) or 1
+
+    # ── Expiry buckets ────────────────────────────────────────────────────────
+    expired_     = [v for v in vars_ if _exp(v) and _exp(v) < now]
+    expiring_7_  = [v for v in vars_ if _exp(v) and now <= _exp(v) <= now + timedelta(days=7)]
+    expiring_30_ = [v for v in vars_ if _exp(v) and now < _exp(v) <= now + timedelta(days=30)]
+    no_expiry_   = [v for v in vars_ if not v.expires_at]
+    has_expiry   = len(vars_) - len(no_expiry_)
+
+    # ── Conformance checks breakdown ──────────────────────────────────────────
+    checks = {
+        'Live Cloud Key':      [v for v in vars_ if v.risk_notes and any(
+            x in v.risk_notes.lower() for x in ['aws','github','stripe','openai','slack','google','live','sendgrid','npm','mailgun'])],
+        'Weak / Default Value':[v for v in vars_ if v.risk_notes and
+            ('weak' in v.risk_notes or 'default' in v.risk_notes)],
+        'Placeholder Value':   [v for v in vars_ if v.risk_notes and 'placeholder' in v.risk_notes],
+        'Low Entropy':         [v for v in vars_ if v.risk_notes and 'entropy' in v.risk_notes],
+        'Short Secret':        [v for v in vars_ if v.risk_notes and 'chars' in v.risk_notes],
+        'URL Format':          [v for v in vars_ if v.risk_notes and 'url' in v.risk_notes.lower()],
+        'Low Char Diversity':  [v for v in vars_ if v.risk_notes and 'diversity' in v.risk_notes.lower()],
+        'Empty Value':         [v for v in vars_ if v.risk_notes and 'empty' in v.risk_notes.lower()],
+    }
+
+    # ── Radar (project-scoped) ────────────────────────────────────────────────
+    credential_strength = round(100 * (1 - (len(checks['Low Entropy']) + len(checks['Short Secret'])) / total))
+    value_hygiene       = round(100 * (1 - (len(checks['Weak / Default Value']) + len(checks['Placeholder Value'])) / total))
+    rotation_coverage   = round(100 * has_expiry / total)
+    no_live_keys        = round(100 * (1 - len(checks['Live Cloud Key']) / total))
+    format_compliance   = round(100 * (1 - len(checks['URL Format']) / total))
+    expiry_bad          = len(expired_) + len(expiring_7_)
+    expiry_hygiene      = round(100 * (1 - expiry_bad / total))
+    radar_data          = [credential_strength, value_hygiene, rotation_coverage,
+                           no_live_keys, format_compliance, expiry_hygiene]
+
+    # ── Per-variable detail rows ──────────────────────────────────────────────
+    var_rows = []
+    for v in vars_:
+        e        = _exp(v)
+        is_exp   = e and e < now
+        days_left= ((e - now).days) if e and not is_exp else None
+        issues   = [c for c, vlist in checks.items() if v in vlist]
+        var_rows.append({
+            'var':       v,
+            'is_exp':    is_exp,
+            'days_left': days_left,
+            'issues':    issues,
+            'clean':     not issues and not is_exp,
+        })
+
+    # ── Recommendations ───────────────────────────────────────────────────────
+    recs = []
+    if checks['Live Cloud Key']:
+        recs.append({'level':'critical', 'text': f'{len(checks["Live Cloud Key"])} live service key(s) detected — rotate immediately and consider using a secrets manager.'})
+    if checks['Weak / Default Value']:
+        recs.append({'level':'high', 'text': f'{len(checks["Weak / Default Value"])} variable(s) use known weak or default values — replace with strong random secrets.'})
+    if checks['Placeholder Value']:
+        recs.append({'level':'high', 'text': f'{len(checks["Placeholder Value"])} placeholder value(s) found — these likely haven\'t been configured yet.'})
+    if checks['Low Entropy']:
+        recs.append({'level':'high', 'text': f'{len(checks["Low Entropy"])} secret(s) have low entropy — use a cryptographically random generator.'})
+    if checks['Short Secret']:
+        recs.append({'level':'medium', 'text': f'{len(checks["Short Secret"])} secret(s) are shorter than recommended — minimum 16 chars, ideally 32+.'})
+    if len(no_expiry_) > 0:
+        recs.append({'level':'medium', 'text': f'{len(no_expiry_)} variable(s) have no rotation reminder set — set expiry on all secrets.'})
+    if expired_:
+        recs.append({'level':'high', 'text': f'{len(expired_)} variable(s) have expired — rotate them now.'})
+    if expiring_7_:
+        recs.append({'level':'medium', 'text': f'{len(expiring_7_)} variable(s) expire within 7 days — schedule rotation.'})
+    if not recs:
+        recs.append({'level':'ok', 'text': 'No issues found. All variables pass conformance checks.'})
+
+    return render_template(
+        'project_security.html',
+        project          = project,
+        score            = score,
+        risk_counts      = risk_counts,
+        total_vars       = len(vars_),
+        has_expiry       = has_expiry,
+        expired_         = expired_,
+        expiring_7_      = expiring_7_,
+        expiring_30_     = expiring_30_,
+        no_expiry_       = no_expiry_,
+        checks           = {k: len(v) for k, v in checks.items()},
+        var_rows         = var_rows,
+        radar_data       = radar_data,
+        recs             = recs,
+        now              = now,
+    )

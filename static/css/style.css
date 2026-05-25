@@ -5,11 +5,11 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 :root {
-    --glass:        rgba(255, 255, 255, 0.025);
-    --glass-hover:  rgba(255, 255, 255, 0.05);
-    --glass-strong: rgba(255, 255, 255, 0.07);
-    --border:       rgba(255, 255, 255, 0.06);
-    --border-md:    rgba(255, 255, 255, 0.10);
+    --glass:        rgba(255, 255, 255, 0.06);
+    --glass-hover:  rgba(255, 255, 255, 0.10);
+    --glass-strong: rgba(255, 255, 255, 0.13);
+    --border:       rgba(255, 255, 255, 0.09);
+    --border-md:    rgba(255, 255, 255, 0.15);
     --text:         rgba(255, 255, 255, 1.00);
     --muted:        rgba(255, 255, 255, 0.90);
     --primary:      rgba(140, 190, 255, 1.00);
@@ -43,7 +43,7 @@ code {
 /* ── Drag region for frameless window ──────────────────── */
 .navbar {
     -webkit-app-region: drag;
-    background: rgba(0, 0, 0, 0.08);
+    background: rgba(0, 0, 0, 0.35);
     backdrop-filter: var(--blur);
     -webkit-backdrop-filter: var(--blur);
     border-bottom: 1px solid var(--border);
@@ -112,7 +112,7 @@ code {
 .auth-card {
     width: 100%;
     max-width: 400px;
-    background: rgba(0, 0, 0, 0.18);
+    background: rgba(0, 0, 0, 0.45);
     backdrop-filter: var(--blur);
     -webkit-backdrop-filter: var(--blur);
     border: 1px solid var(--border-md);
@@ -146,8 +146,8 @@ code {
 .vault-input,
 .form-control,
 .form-select {
-    background: rgba(255, 255, 255, 0.03) !important;
-    border: 1px solid var(--border) !important;
+    background: rgba(255, 255, 255, 0.07) !important;
+    border: 1px solid var(--border-md) !important;
     color: var(--text) !important;
     border-radius: var(--radius-sm) !important;
     font-size: .85rem;
@@ -307,10 +307,10 @@ code {
 
 /* ── Variables table ────────────────────────────────────── */
 .var-table-wrap {
-    background: var(--glass);
+    background: rgba(0, 0, 0, 0.28);
     backdrop-filter: var(--blur-md);
     -webkit-backdrop-filter: var(--blur-md);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-md);
     border-radius: var(--radius);
     overflow: hidden;
 }
@@ -405,7 +405,7 @@ code {
 }
 
 .vault-modal .modal-content {
-    background: rgba(12, 12, 12, 0.40);
+    background: rgba(10, 10, 12, 0.72);
     backdrop-filter: var(--blur);
     -webkit-backdrop-filter: var(--blur);
     border: 1px solid var(--border-md);

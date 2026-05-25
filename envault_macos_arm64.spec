@@ -16,8 +16,9 @@ datas = [
     (os.path.join(REPO_ROOT, 'routes'),    'routes'),
     (os.path.join(REPO_ROOT, 'app.py'),    '.'),
     (os.path.join(REPO_ROOT, 'models.py'), '.'),
-    (os.path.join(REPO_ROOT, 'crypto.py'), '.'),
-    (os.path.join(REPO_ROOT, 'run.py'),    '.'),
+    (os.path.join(REPO_ROOT, 'crypto.py'),      '.'),
+    (os.path.join(REPO_ROOT, 'risk_engine.py'), '.'),
+    (os.path.join(REPO_ROOT, 'run.py'),         '.'),
 ] + waitress_datas
 
 hiddenimports = [
@@ -56,6 +57,7 @@ hiddenimports = [
     'waitress.server',
     'routes.auth',
     'routes.projects',
+    'risk_engine',
     'hashlib',
     'hmac',
     'base64',

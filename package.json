@@ -1,20 +1,27 @@
 {
   "name": "envault",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Encrypted environment variable manager for developers",
-  "author": "Anuvratchandra",
+  "author": "Anuvrat14",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "dev": "FLASK_ENV=development electron .",
     "build:mac-arm64": "electron-builder --mac --arm64",
     "build:mac-x64": "electron-builder --mac --x64",
-    "build:win": "electron-builder --win"
+    "build:win": "electron-builder --win",
+    "release": "electron-builder --mac --publish always"
   },
   "build": {
     "appId": "com.envault.app",
     "productName": "Envault",
     "copyright": "Copyright © 2026",
+    "publish": {
+      "provider": "github",
+      "owner": "Anuvrat14",
+      "repo": "envault",
+      "private": false
+    },
     "files": [
       "main.js",
       "static/**/*",
@@ -70,5 +77,9 @@
   "devDependencies": {
     "electron": "^29.4.6",
     "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "electron-log": "^5.4.4",
+    "electron-updater": "^6.8.3"
   }
 }

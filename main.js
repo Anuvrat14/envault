@@ -1,11 +1,19 @@
-const { app, BrowserWindow, shell, Notification } = require('electron');
+const { app, BrowserWindow, shell, Notification, dialog, ipcMain } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const { spawn } = require('child_process');
-const path = require('path');
-const http = require('http');
+const path  = require('path');
+const http  = require('http');
+const log   = require('electron-log');
 
 const PORT = 7331;
 let flaskProcess = null;
 let mainWindow   = null;
+
+// ── Logging ────────────────────────────────────────────────────────────────
+log.transports.file.level = 'info';
+autoUpdater.logger = log;
+autoUpdater.autoDownload    = true;   // download silently in background
+autoUpdater.autoInstallOnAppQuit = true; // install on next quit
 
 // ── Start Flask ────────────────────────────────────────────────────────────
 function startFlask() {
@@ -21,18 +29,18 @@ function startFlask() {
         env: { ...process.env },
     });
 
-    flaskProcess.stdout.on('data', d => console.log('[flask]', d.toString().trim()));
-    flaskProcess.stderr.on('data', d => console.error('[flask]', d.toString().trim()));
-    flaskProcess.on('exit', code => console.log('[flask] exited with code', code));
+    flaskProcess.stdout.on('data', d => log.info('[flask]', d.toString().trim()));
+    flaskProcess.stderr.on('data', d => log.warn('[flask]', d.toString().trim()));
+    flaskProcess.on('exit', code => log.info('[flask] exited with code', code));
 }
 
 // ── Poll until Flask is ready, then open window ────────────────────────────
 function waitForFlask(retries = 30) {
-    http.get(`http://127.0.0.1:${PORT}/`, res => {
+    http.get(`http://127.0.0.1:${PORT}/`, () => {
         createWindow();
     }).on('error', () => {
         if (retries > 0) setTimeout(() => waitForFlask(retries - 1), 500);
-        else console.error('Flask failed to start.');
+        else log.error('Flask failed to start.');
     });
 }
 
@@ -58,17 +66,76 @@ function createWindow() {
         icon: path.join(__dirname, 'static', 'icon.png'),
     });
     mainWindow.setWindowButtonVisibility(true);
-
     mainWindow.loadURL(`http://127.0.0.1:${PORT}/`);
 
-    // Open external links in browser, not Electron
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
         shell.openExternal(url);
         return { action: 'deny' };
     });
 
     mainWindow.on('closed', () => { mainWindow = null; });
+
+    // Check for updates 5 seconds after window opens (only in packaged builds)
+    if (app.isPackaged) {
+        setTimeout(() => checkForUpdates(), 5000);
+    }
 }
+
+// ── Auto-updater ───────────────────────────────────────────────────────────
+function checkForUpdates() {
+    autoUpdater.checkForUpdates().catch(err => {
+        log.warn('Update check failed:', err.message);
+    });
+}
+
+autoUpdater.on('checking-for-update', () => {
+    log.info('Checking for updates…');
+});
+
+autoUpdater.on('update-available', info => {
+    log.info('Update available:', info.version);
+    // Silent notification — download starts automatically
+    if (Notification.isSupported()) {
+        new Notification({
+            title: 'Envault Update',
+            body: `v${info.version} is downloading in the background.`,
+            silent: true,
+        }).show();
+    }
+});
+
+autoUpdater.on('update-not-available', () => {
+    log.info('App is up to date.');
+});
+
+autoUpdater.on('download-progress', progress => {
+    const pct = Math.round(progress.percent);
+    if (mainWindow) mainWindow.setProgressBar(pct / 100);
+    log.info(`Download progress: ${pct}%`);
+});
+
+autoUpdater.on('update-downloaded', info => {
+    if (mainWindow) mainWindow.setProgressBar(-1); // clear progress bar
+    log.info('Update downloaded:', info.version);
+
+    const response = dialog.showMessageBoxSync(mainWindow, {
+        type: 'info',
+        title: 'Update Ready',
+        message: `Envault ${info.version} is ready to install.`,
+        detail: 'The update will be applied when you restart the app.',
+        buttons: ['Restart Now', 'Later'],
+        defaultId: 0,
+        cancelId: 1,
+    });
+
+    if (response === 0) {
+        autoUpdater.quitAndInstall(false, true);
+    }
+});
+
+autoUpdater.on('error', err => {
+    log.error('Auto-updater error:', err.message);
+});
 
 // ── App lifecycle ──────────────────────────────────────────────────────────
 app.whenReady().then(() => {
@@ -104,7 +171,6 @@ function startNotificationPolling() {
                         const dedupeKey = `${n.type}:${n.project}:${n.key}`;
                         if (_notifiedKeys.has(dedupeKey)) return;
                         _notifiedKeys.add(dedupeKey);
-                        // Clear dedupe after 6 hours so it can fire again
                         setTimeout(() => _notifiedKeys.delete(dedupeKey), 6 * 60 * 60 * 1000);
                         if (Notification.isSupported()) {
                             const icon = n.type === 'expired' || n.type === 'risk' ? '🔴' : '🟡';
@@ -118,5 +184,5 @@ function startNotificationPolling() {
                 } catch (_) {}
             });
         }).on('error', () => {});
-    }, 60_000); // every 60 seconds
+    }, 60_000);
 }

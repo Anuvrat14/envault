@@ -1,0 +1,497 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} — Security Report{% endblock %}
+
+{% block extra_css %}
+<style>
+:root {
+    --s-surface:  rgba(255,255,255,.03);
+    --s-border:   rgba(255,255,255,.07);
+    --s-border-h: rgba(255,255,255,.12);
+    --s-text:     rgba(255,255,255,.88);
+    --s-muted:    rgba(255,255,255,.38);
+    --s-label:    rgba(255,255,255,.48);
+}
+
+/* Hero */
+.sec-hero {
+    background: var(--s-surface);
+    border: 1px solid var(--s-border);
+    border-radius: 14px;
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 2.5rem;
+}
+
+/* Gauge */
+.gauge-outer { flex-shrink:0; position:relative; width:180px; height:180px; }
+.gauge-svg   { transform:rotate(-90deg); display:block; }
+.gauge-track { fill:none; stroke:rgba(255,255,255,.06); stroke-width:13; }
+.gauge-fill  { fill:none; stroke-width:13; stroke-linecap:round;
+               transition:stroke-dashoffset 1.5s cubic-bezier(.22,1,.36,1); }
+.gauge-center {
+    position:absolute; inset:0;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+}
+.gauge-number { font-size:2.8rem; font-weight:700; line-height:1; letter-spacing:-.04em; color:rgba(255,255,255,.9); }
+.gauge-denom  { font-size:.75rem; color:var(--s-muted); margin-top:.1rem; }
+.gauge-grade  { font-size:.62rem; text-transform:uppercase; letter-spacing:.12em; color:var(--s-muted); margin-top:.3rem; }
+
+/* Hero stats */
+.hero-stats { flex:1; display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; }
+.hstat { background:rgba(255,255,255,.02); border:1px solid var(--s-border); border-radius:10px; padding:.9rem; text-align:center; }
+.hstat-n { font-size:1.7rem; font-weight:700; line-height:1; letter-spacing:-.02em; color:rgba(255,255,255,.85); }
+.hstat-n.is-bad  { color:#c0392b; }
+.hstat-n.is-warn { color:#9a7d0a; }
+.hstat-n.is-ok   { color:#1e7e4e; }
+.hstat-l { font-size:.65rem; text-transform:uppercase; letter-spacing:.08em; color:var(--s-label); margin-top:.28rem; }
+
+/* Cards */
+.sec-card {
+    background:var(--s-surface); border:1px solid var(--s-border);
+    border-radius:14px; padding:1.4rem; height:100%;
+    transition:border-color .15s;
+}
+.sec-card:hover { border-color:var(--s-border-h); }
+
+/* Heading */
+.sec-heading {
+    display:flex; align-items:center; gap:.55rem;
+    font-size:.67rem; text-transform:uppercase; letter-spacing:.1em;
+    color:var(--s-muted); margin-bottom:1.1rem;
+    padding-bottom:.6rem; border-bottom:1px solid var(--s-border);
+}
+
+/* Conformance check rows */
+.check-row {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:.55rem .8rem; border-radius:8px;
+    border:1px solid var(--s-border);
+    background:rgba(255,255,255,.02);
+    margin-bottom:.4rem; font-size:.83rem;
+}
+.check-row:last-child { margin-bottom:0; }
+.check-left { display:flex; align-items:center; gap:.6rem; }
+.check-dot  { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.check-pass { color:rgba(255,255,255,.85); }
+.check-fail { color:rgba(255,255,255,.85); }
+.check-badge {
+    font-size:.72rem; font-weight:600; border-radius:20px;
+    padding:.12rem .55rem; min-width:28px; text-align:center;
+}
+.check-badge.pass { background:rgba(30,126,78,.15); color:#1e7e4e; }
+.check-badge.fail { background:rgba(192,57,43,.15); color:#c0392b; }
+
+/* Variable conformance table */
+.ctbl { width:100%; border-collapse:collapse; }
+.ctbl thead th {
+    font-size:.67rem; text-transform:uppercase; letter-spacing:.09em;
+    color:var(--s-muted); padding:.5rem .9rem;
+    border-bottom:1px solid var(--s-border); font-weight:500; white-space:nowrap;
+}
+.ctbl tbody tr { border-bottom:1px solid rgba(255,255,255,.04); transition:background .1s; }
+.ctbl tbody tr:last-child { border-bottom:none; }
+.ctbl tbody tr:hover { background:rgba(255,255,255,.02); }
+.ctbl tbody td { padding:.6rem .9rem; vertical-align:middle; font-size:.835rem; }
+.ctbl tbody tr.row-clean td { opacity:.55; }
+
+/* Recommendation cards */
+.rec {
+    display:flex; align-items:flex-start; gap:.75rem;
+    padding:.75rem 1rem; border-radius:10px; margin-bottom:.5rem;
+    border:1px solid var(--s-border); background:rgba(255,255,255,.02);
+    font-size:.84rem; line-height:1.5;
+}
+.rec:last-child { margin-bottom:0; }
+.rec-icon { flex-shrink:0; margin-top:.1rem; font-size:.85rem; }
+.rec.ok     { border-color:rgba(30,126,78,.2); background:rgba(30,126,78,.04); }
+.rec.critical { border-color:rgba(192,57,43,.2); background:rgba(192,57,43,.04); }
+.rec.high   { border-color:rgba(183,96,10,.2); background:rgba(183,96,10,.04); }
+.rec.medium { border-color:rgba(154,125,10,.2); background:rgba(154,125,10,.04); }
+
+/* Project bar */
+.bar-track { height:5px; background:rgba(255,255,255,.06); border-radius:3px; overflow:hidden; }
+.bar-fill  { height:100%; border-radius:3px; background:rgba(255,255,255,.22);
+             transition:width 1.3s cubic-bezier(.22,1,.36,1); }
+
+/* Issue tag */
+.issue-tag {
+    display:inline-block; font-size:.68rem; padding:.1rem .45rem;
+    border-radius:4px; border:1px solid rgba(192,57,43,.25);
+    background:rgba(192,57,43,.08); color:#c0392b;
+    margin:.1rem .15rem .1rem 0;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+
+    <!-- Header -->
+    <div class="d-flex align-items-center gap-3 mb-4">
+        <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="btn btn-icon">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <div style="flex:1;">
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <div style="width:9px;height:9px;border-radius:50%;background:{{ project.color }};flex-shrink:0;"></div>
+                <h4 class="mb-0" style="font-weight:600;letter-spacing:-.02em;">{{ project.name }}</h4>
+                <span style="font-size:.75rem;color:var(--s-muted);padding:.15rem .55rem;
+                             border:1px solid var(--s-border);border-radius:20px;">Security Report</span>
+            </div>
+            <small style="color:var(--s-muted);font-size:.78rem;">
+                {{ total_vars }} variable{{ 's' if total_vars != 1 else '' }}
+                &nbsp;·&nbsp; Last analysed: just now
+            </small>
+        </div>
+        <a href="{{ url_for('projects.security_overview') }}" class="btn btn-sm btn-outline-light" style="opacity:.6;">
+            <i class="fas fa-globe me-1"></i>Global View
+        </a>
+    </div>
+
+    <!-- ── HERO ── -->
+    <div class="sec-hero">
+        <div class="gauge-outer">
+            <svg class="gauge-svg" width="180" height="180" viewBox="0 0 180 180">
+                <circle class="gauge-track" cx="90" cy="90" r="76"/>
+                <circle class="gauge-fill" id="scoreArc" cx="90" cy="90" r="76"
+                        stroke="rgba(255,255,255,.55)"
+                        stroke-dasharray="{{ (2 * 3.14159265 * 76)|round(3) }}"
+                        stroke-dashoffset="{{ (2 * 3.14159265 * 76)|round(3) }}"
+                        data-target="{{ (2 * 3.14159265 * 76 * (1 - score / 100))|round(3) }}"/>
+            </svg>
+            <div class="gauge-center">
+                <span class="gauge-number" id="scoreNum">0</span>
+                <span class="gauge-denom">/ 100</span>
+                <span class="gauge-grade">
+                    {{ 'Excellent' if score >= 90 else ('Good' if score >= 70 else ('Fair' if score >= 50 else 'Critical')) }}
+                </span>
+            </div>
+        </div>
+
+        <div class="hero-stats">
+            <div class="hstat">
+                <div class="hstat-n {{ 'is-bad' if risk_counts.critical > 0 else '' }}">{{ risk_counts.critical }}</div>
+                <div class="hstat-l">Critical</div>
+            </div>
+            <div class="hstat">
+                <div class="hstat-n {{ 'is-bad' if risk_counts.high > 0 else '' }}">{{ risk_counts.high }}</div>
+                <div class="hstat-l">High</div>
+            </div>
+            <div class="hstat">
+                <div class="hstat-n {{ 'is-warn' if risk_counts.medium > 0 else '' }}">{{ risk_counts.medium }}</div>
+                <div class="hstat-l">Medium</div>
+            </div>
+            <div class="hstat">
+                <div class="hstat-n">{{ risk_counts.low }}</div>
+                <div class="hstat-l">Low</div>
+            </div>
+            <div class="hstat">
+                <div class="hstat-n {{ 'is-bad' if expired_|length > 0 else '' }}">{{ expired_|length }}</div>
+                <div class="hstat-l">Expired</div>
+            </div>
+            <div class="hstat">
+                <div class="hstat-n {{ 'is-warn' if expiring_7_|length > 0 else '' }}">{{ expiring_7_|length }}</div>
+                <div class="hstat-l">Expiring ≤7d</div>
+            </div>
+            <div class="hstat">
+                <div class="hstat-n">{{ has_expiry }}</div>
+                <div class="hstat-l">Has Expiry</div>
+            </div>
+            <div class="hstat">
+                <div class="hstat-n {{ 'is-ok' if risk_counts.none == total_vars and total_vars > 0 else '' }}">{{ risk_counts.none }}</div>
+                <div class="hstat-l">Clean</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Row 2: Conformance Checks · Radar · Recommendations ── -->
+    <div class="row g-3 mb-3">
+
+        <!-- Conformance checks -->
+        <div class="col-md-4">
+            <div class="sec-card">
+                <div class="sec-heading"><i class="fas fa-list-check"></i> Conformance Checks</div>
+                {% set check_meta = {
+                    'Live Cloud Key':      ('#c0392b', 'fas fa-key'),
+                    'Weak / Default Value':('#b7600a', 'fas fa-lock-open'),
+                    'Placeholder Value':   ('#b7600a', 'fas fa-pen'),
+                    'Low Entropy':         ('#9a7d0a', 'fas fa-shuffle'),
+                    'Short Secret':        ('#9a7d0a', 'fas fa-ruler-horizontal'),
+                    'URL Format':          ('#2471a3', 'fas fa-link'),
+                    'Low Char Diversity':  ('#9a7d0a', 'fas fa-font'),
+                    'Empty Value':         ('#9a7d0a', 'fas fa-circle-exclamation'),
+                } %}
+                {% for check_name, count in checks.items() %}
+                {% set meta = check_meta.get(check_name, ('#555','fas fa-circle')) %}
+                <div class="check-row">
+                    <div class="check-left">
+                        <div class="check-dot" style="background:{{ meta[0] if count > 0 else 'rgba(255,255,255,.15)' }};"></div>
+                        <span>{{ check_name }}</span>
+                    </div>
+                    <span class="check-badge {{ 'fail' if count > 0 else 'pass' }}">
+                        {{ count if count > 0 else '✓' }}
+                    </span>
+                </div>
+                {% endfor %}
+                <div style="margin-top:1rem;padding-top:.8rem;border-top:1px solid var(--s-border);
+                             font-size:.75rem;color:var(--s-muted);">
+                    {{ total_vars - (checks.values()|sum) }} / {{ total_vars }} variables pass all checks
+                </div>
+            </div>
+        </div>
+
+        <!-- Radar -->
+        <div class="col-md-4">
+            <div class="sec-card">
+                <div class="sec-heading"><i class="fas fa-chart-radar"></i> Security Posture</div>
+                <canvas id="radarChart" height="270"></canvas>
+            </div>
+        </div>
+
+        <!-- Recommendations -->
+        <div class="col-md-4">
+            <div class="sec-card">
+                <div class="sec-heading"><i class="fas fa-circle-info"></i> Recommendations</div>
+                {% for rec in recs %}
+                <div class="rec {{ rec.level }}">
+                    <span class="rec-icon">
+                        {% if rec.level == 'critical' %}<i class="fas fa-circle-xmark" style="color:#c0392b;"></i>
+                        {% elif rec.level == 'high' %}<i class="fas fa-triangle-exclamation" style="color:#b7600a;"></i>
+                        {% elif rec.level == 'medium' %}<i class="fas fa-circle-exclamation" style="color:#9a7d0a;"></i>
+                        {% else %}<i class="fas fa-circle-check" style="color:#1e7e4e;"></i>{% endif %}
+                    </span>
+                    <span>{{ rec.text }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Row 3: Expiry Breakdown + Expiry Bar ── -->
+    <div class="row g-3 mb-3">
+        <div class="col-md-5">
+            <div class="sec-card">
+                <div class="sec-heading"><i class="fas fa-calendar-days"></i> Expiry Breakdown</div>
+                {% if expired_ %}
+                <div style="margin-bottom:.9rem;">
+                    <div style="font-size:.75rem;color:#c0392b;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.4rem;">
+                        Expired ({{ expired_|length }})
+                    </div>
+                    {% for v in expired_ %}
+                    <div style="font-size:.83rem;padding:.3rem 0;border-bottom:1px solid rgba(255,255,255,.04);
+                                display:flex;justify-content:space-between;">
+                        <code class="var-key">{{ v.key }}</code>
+                        <span style="color:#c0392b;font-size:.75rem;">Expired {{ v.expires_at.strftime('%b %d') }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if expiring_7_ %}
+                <div style="margin-bottom:.9rem;">
+                    <div style="font-size:.75rem;color:#9a7d0a;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.4rem;">
+                        Expiring within 7 days ({{ expiring_7_|length }})
+                    </div>
+                    {% for v in expiring_7_ %}
+                    <div style="font-size:.83rem;padding:.3rem 0;border-bottom:1px solid rgba(255,255,255,.04);
+                                display:flex;justify-content:space-between;">
+                        <code class="var-key">{{ v.key }}</code>
+                        <span style="color:#9a7d0a;font-size:.75rem;">{{ v.expires_at.strftime('%b %d') }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if expiring_30_ %}
+                <div style="margin-bottom:.9rem;">
+                    <div style="font-size:.75rem;color:var(--s-label);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.4rem;">
+                        Expiring within 30 days ({{ expiring_30_|length }})
+                    </div>
+                    {% for v in expiring_30_ %}
+                    <div style="font-size:.83rem;padding:.3rem 0;border-bottom:1px solid rgba(255,255,255,.04);
+                                display:flex;justify-content:space-between;">
+                        <code class="var-key">{{ v.key }}</code>
+                        <span style="color:var(--s-muted);font-size:.75rem;">{{ v.expires_at.strftime('%b %d') }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if no_expiry_ %}
+                <div>
+                    <div style="font-size:.75rem;color:var(--s-muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.4rem;">
+                        No expiry set ({{ no_expiry_|length }})
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:.3rem;">
+                        {% for v in no_expiry_ %}
+                        <code class="var-key" style="opacity:.5;">{{ v.key }}</code>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                {% if not expired_ and not expiring_7_ and not expiring_30_ and not no_expiry_ %}
+                <div class="text-center py-3" style="color:var(--s-muted);font-size:.85rem;">All variables have expiry set</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-md-7">
+            <div class="sec-card">
+                <div class="sec-heading"><i class="fas fa-chart-bar"></i> Risk vs Clean Breakdown</div>
+                <canvas id="breakdownBar" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Full Variable Conformance Table ── -->
+    <div class="sec-card mb-3">
+        <div class="sec-heading">
+            <i class="fas fa-table"></i> All Variables — Conformance Detail
+            <span style="margin-left:.3rem;background:rgba(255,255,255,.06);border-radius:20px;
+                         padding:.1rem .55rem;font-size:.7rem;">{{ total_vars }}</span>
+        </div>
+        <div style="overflow-x:auto;">
+            <table class="ctbl">
+                <thead>
+                    <tr>
+                        <th>Key</th>
+                        <th>Risk</th>
+                        <th>Issues Found</th>
+                        <th>Expiry</th>
+                        <th>Rotation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in var_rows %}
+                    <tr class="{{ 'row-clean' if row.clean else '' }}">
+                        <td><code class="var-key">{{ row.var.key }}</code></td>
+                        <td>
+                            {% if row.var.risk_level and row.var.risk_level not in ('none','dismissed',None) %}
+                            <span class="risk-badge risk-{{ row.var.risk_level }}">{{ row.var.risk_level }}</span>
+                            {% elif row.var.risk_level == 'dismissed' %}
+                            <span style="color:var(--s-muted);font-size:.75rem;">dismissed</span>
+                            {% else %}
+                            <span style="color:var(--s-muted);">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if row.issues %}
+                                {% for issue in row.issues %}
+                                <span class="issue-tag">{{ issue }}</span>
+                                {% endfor %}
+                            {% else %}
+                            <span style="color:#1e7e4e;font-size:.78rem;"><i class="fas fa-check me-1"></i>Clean</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if row.is_exp %}
+                            <span class="expiry-badge expiry-expired">Expired</span>
+                            {% elif row.days_left is not none %}
+                                {% if row.days_left <= 7 %}
+                                <span class="expiry-badge expiry-soon">{{ row.days_left }}d left</span>
+                                {% else %}
+                                <span class="expiry-badge expiry-ok">{{ row.days_left }}d</span>
+                                {% endif %}
+                            {% else %}
+                            <span style="color:var(--s-muted);font-size:.78rem;">Not set</span>
+                            {% endif %}
+                        </td>
+                        <td style="color:var(--s-muted);font-size:.78rem;">
+                            {% if row.var.rotation_days %}every {{ row.var.rotation_days }}d
+                            {% elif row.var.last_rotated %}manual
+                            {% else %}—{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+Chart.defaults.color       = 'rgba(255,255,255,0.38)';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.05)';
+Chart.defaults.font.family = "-apple-system,'SF Pro Text',BlinkMacSystemFont,sans-serif";
+Chart.defaults.font.size   = 11.5;
+
+/* gauge */
+const arc    = document.getElementById('scoreArc');
+const numEl  = document.getElementById('scoreNum');
+const total_ = parseFloat(arc.getAttribute('stroke-dasharray'));
+const target = parseFloat(arc.dataset.target);
+const score  = Math.round((1 - target / total_) * 100);
+const dur = 1400, t0 = performance.now();
+(function tick(ts) {
+    const p = Math.min((ts - t0) / dur, 1);
+    const e = 1 - Math.pow(1 - p, 4);
+    arc.setAttribute('stroke-dashoffset', total_ - (total_ - target) * e);
+    numEl.textContent = Math.round(score * e);
+    if (p < 1) requestAnimationFrame(tick);
+})(t0);
+
+/* radar */
+new Chart(document.getElementById('radarChart'), {
+    type: 'radar',
+    data: {
+        labels: ['Credential Strength','Value Hygiene','Rotation Coverage',
+                 'No Live Keys','Format Compliance','Expiry Health'],
+        datasets: [{
+            data: {{ radar_data | tojson }},
+            backgroundColor:      'rgba(255,255,255,0.04)',
+            borderColor:          'rgba(255,255,255,0.4)',
+            pointBackgroundColor: 'rgba(255,255,255,0.6)',
+            pointBorderColor:     'transparent',
+            borderWidth: 1.5, pointRadius: 4,
+        }]
+    },
+    options: {
+        responsive: true, animation: { duration: 1200 },
+        scales: {
+            r: {
+                min: 0, max: 100,
+                ticks: { stepSize: 25, color: 'rgba(255,255,255,.15)',
+                         backdropColor: 'transparent', font: { size: 9.5 } },
+                grid:        { color: 'rgba(255,255,255,.05)' },
+                angleLines:  { color: 'rgba(255,255,255,.05)' },
+                pointLabels: { color: 'rgba(255,255,255,.55)', font: { size: 11 } },
+            }
+        },
+        plugins: { legend: { display: false } }
+    }
+});
+
+/* breakdown bar */
+new Chart(document.getElementById('breakdownBar'), {
+    type: 'bar',
+    data: {
+        labels: ['Critical','High','Medium','Low','Clean','No Expiry'],
+        datasets: [{
+            data: [
+                {{ risk_counts.critical }}, {{ risk_counts.high }},
+                {{ risk_counts.medium }},  {{ risk_counts.low }},
+                {{ risk_counts.none }},    {{ no_expiry_|length }},
+            ],
+            backgroundColor: [
+                'rgba(192,57,43,.75)', 'rgba(183,96,10,.7)',
+                'rgba(154,125,10,.65)','rgba(36,113,163,.6)',
+                'rgba(30,126,78,.6)',   'rgba(255,255,255,.1)',
+            ],
+            borderColor: 'transparent', borderRadius: 6, borderSkipped: false,
+        }]
+    },
+    options: {
+        responsive: true, animation: { duration: 1000 },
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { grid: { color:'rgba(255,255,255,.04)' }, ticks: { color:'rgba(255,255,255,.4)', font:{size:11} } },
+            y: { grid: { color:'rgba(255,255,255,.04)' }, ticks: { color:'rgba(255,255,255,.4)', stepSize:1, font:{size:11} }, beginAtZero:true }
+        }
+    }
+});
+</script>
+{% endblock %}
