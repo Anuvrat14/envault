@@ -45,7 +45,7 @@ function createWindow() {
         minHeight: 540,
         transparent: true,
         backgroundColor: '#00000000',
-        vibrancy: 'under-window',
+        vibrancy: 'fullscreen-ui',
         visualEffectState: 'active',
         titleBarStyle: 'hiddenInset',
         trafficLightPosition: { x: 16, y: 16 },
