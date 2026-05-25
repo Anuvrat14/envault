@@ -43,14 +43,20 @@ function createWindow() {
         height: 720,
         minWidth: 800,
         minHeight: 540,
-        backgroundColor: '#0a0a0a',
-        titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+        transparent: true,
+        backgroundColor: '#00000000',
+        vibrancy: 'under-window',
+        visualEffectState: 'active',
+        titleBarStyle: 'hiddenInset',
+        trafficLightPosition: { x: 16, y: 16 },
+        frame: false,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
         },
         icon: path.join(__dirname, 'static', 'icon.png'),
     });
+    mainWindow.setWindowButtonVisibility(true);
 
     mainWindow.loadURL(`http://127.0.0.1:${PORT}/`);
 
