@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} — Envault{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+
+    <!-- Header -->
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div class="d-flex align-items-center gap-3">
+            <a href="{{ url_for('projects.dashboard') }}" class="btn btn-icon">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <div>
+                <h4 class="mb-0">{{ project.name }}</h4>
+                {% if project.description %}
+                <small class="text-muted">{{ project.description }}</small>
+                {% endif %}
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <!-- Import -->
+            <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#importModal">
+                <i class="fas fa-file-import me-1"></i>Import .env
+            </button>
+            <!-- Export -->
+            <a href="{{ url_for('projects.export_env', project_id=project.id) }}"
+               class="btn btn-sm btn-outline-light">
+                <i class="fas fa-file-export me-1"></i>Export .env
+            </a>
+            <!-- Add variable -->
+            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addVarModal">
+                <i class="fas fa-plus me-1"></i>Add Variable
+            </button>
+        </div>
+    </div>
+
+    <!-- Variables table -->
+    {% if project.variables %}
+    <div class="var-table-wrap">
+        <table class="var-table">
+            <thead>
+                <tr>
+                    <th style="width:35%">Key</th>
+                    <th>Value</th>
+                    <th style="width:22%">Notes</th>
+                    <th style="width:80px;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for var in project.variables %}
+                <tr>
+                    <td>
+                        <code class="var-key">{{ var.key }}</code>
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="var-masked" id="val-{{ var.id }}">••••••••••••</span>
+                            <button class="btn-reveal" id="btn-reveal-{{ var.id }}"
+                                    onclick="toggleReveal({{ var.id }}, {{ project.id }})"
+                                    title="Reveal">
+                                <i class="fas fa-eye" id="icon-{{ var.id }}"></i>
+                            </button>
+                            <button class="btn-copy"
+                                    onclick="copyValue({{ var.id }}, {{ project.id }})"
+                                    title="Copy to clipboard">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="text-muted" style="font-size:.8rem;">
+                            {{ var.notes or '' }}
+                        </span>
+                    </td>
+                    <td class="text-end">
+                        <form method="POST"
+                              action="{{ url_for('projects.delete_variable', project_id=project.id, var_id=var.id) }}"
+                              onsubmit="return confirm('Delete {{ var.key }}?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn-del" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-key fa-3x mb-3"></i>
+        <h5>No variables yet</h5>
+        <p class="text-muted mb-4">Add a variable or import an existing .env file.</p>
+        <button class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#addVarModal">
+            <i class="fas fa-plus me-2"></i>Add Variable
+        </button>
+        <button class="btn btn-outline-light" data-bs-toggle="modal" data-bs-target="#importModal">
+            <i class="fas fa-file-import me-2"></i>Import .env
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- Danger zone -->
+    <div class="danger-zone mt-5">
+        <small class="text-muted d-block mb-2">Danger Zone</small>
+        <div class="d-flex align-items-center justify-content-between">
+            <div>
+                <strong style="font-size:.875rem;">Delete Project</strong>
+                <p class="text-muted mb-0" style="font-size:.8rem;">
+                    Permanently deletes this project and all {{ project.variables|length }} variable(s).
+                </p>
+            </div>
+            <form method="POST" action="{{ url_for('projects.delete_project', project_id=project.id) }}"
+                  onsubmit="return confirm('Delete project {{ project.name }} and all its variables? This cannot be undone.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <i class="fas fa-trash me-1"></i>Delete Project
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Variable Modal -->
+<div class="modal fade vault-modal" id="addVarModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog" style="margin-top:80px;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus me-2" style="opacity:.6;"></i>Add Variable</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('projects.add_variable', project_id=project.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body px-4 py-3">
+                    <div class="mb-3">
+                        <label class="form-label">Key</label>
+                        <input type="text" class="form-control vault-input text-uppercase" name="key"
+                               placeholder="e.g. DATABASE_URL" autocomplete="off"
+                               pattern="[A-Za-z_][A-Za-z0-9_]*" required>
+                        <div class="hint">Uppercase letters, digits, underscores only.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Value</label>
+                        <input type="password" class="form-control vault-input font-mono" name="value"
+                               placeholder="Value (encrypted at rest)" autocomplete="off">
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" id="showAddValue"
+                                   onchange="toggleInputType('addValueInput', this)">
+                            <label class="form-check-label" for="showAddValue" style="font-size:.8rem; color:rgba(255,255,255,.4);">
+                                Show value
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mb-1">
+                        <label class="form-label">Notes <span class="text-muted">(optional)</span></label>
+                        <input type="text" class="form-control vault-input" name="notes"
+                               placeholder="e.g. PostgreSQL connection string">
+                    </div>
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-lock me-2"></i>Encrypt &amp; Save
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal fade vault-modal" id="importModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog" style="margin-top:80px;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-file-import me-2" style="opacity:.6;"></i>Import .env File</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('projects.import_env', project_id=project.id) }}"
+                  enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body px-4 py-3">
+                    <div class="drop-zone" id="dropZone"
+                         onclick="document.getElementById('envFileInput').click()">
+                        <i class="fas fa-file-arrow-up fa-2x mb-2" style="opacity:.4;"></i>
+                        <p class="mb-1">Drop your .env file here</p>
+                        <small class="text-muted">or click to browse</small>
+                        <input type="file" id="envFileInput" name="env_file"
+                               accept=".env,.txt" style="display:none;"
+                               onchange="updateDropLabel(this)">
+                    </div>
+                    <p id="fileLabel" class="text-muted text-center mt-2" style="font-size:.8rem;"></p>
+                    <div class="hint mt-2">
+                        Existing keys will be overwritten. Lines starting with <code>#</code> are ignored.
+                    </div>
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-file-import me-2"></i>Import &amp; Encrypt
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+const revealedValues = {};
+
+async function fetchValue(varId, projectId) {
+    if (revealedValues[varId] !== undefined) return revealedValues[varId];
+    const res = await fetch(`/projects/${projectId}/variables/${varId}/copy`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF }
+    });
+    const data = await res.json();
+    if (data.error) { showToast(data.error, true); return null; }
+    revealedValues[varId] = data.value;
+    return data.value;
+}
+
+async function toggleReveal(varId, projectId) {
+    const span = document.getElementById(`val-${varId}`);
+    const icon = document.getElementById(`icon-${varId}`);
+    if (span.dataset.revealed === 'true') {
+        span.textContent = '••••••••••••';
+        span.dataset.revealed = 'false';
+        icon.className = 'fas fa-eye';
+        return;
+    }
+    const val = await fetchValue(varId, projectId);
+    if (val === null) return;
+    span.textContent = val;
+    span.dataset.revealed = 'true';
+    icon.className = 'fas fa-eye-slash';
+}
+
+async function copyValue(varId, projectId) {
+    const val = await fetchValue(varId, projectId);
+    if (val === null) return;
+    await navigator.clipboard.writeText(val);
+    showToast('Copied! Clears in 30s');
+    setTimeout(() => navigator.clipboard.writeText(''), 30000);
+}
+
+function showToast(msg, isError = false) {
+    const toast = document.getElementById('clipboardToast');
+    document.getElementById('toastMsg').textContent = msg;
+    toast.classList.toggle('bg-danger', isError);
+    new bootstrap.Toast(toast, { delay: 2500 }).show();
+}
+
+function toggleInputType(inputId, checkbox) {
+    // repurposed: just toggle the adjacent password input
+    const input = checkbox.closest('form').querySelector('input[name="value"]');
+    if (input) input.type = checkbox.checked ? 'text' : 'password';
+}
+
+function updateDropLabel(input) {
+    const label = document.getElementById('fileLabel');
+    label.textContent = input.files[0] ? input.files[0].name : '';
+}
+
+// Drag-and-drop
+const dz = document.getElementById('dropZone');
+if (dz) {
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+    dz.addEventListener('drop', e => {
+        e.preventDefault();
+        dz.classList.remove('drag-over');
+        const file = e.dataTransfer.files[0];
+        if (file) {
+            document.getElementById('envFileInput').files = e.dataTransfer.files;
+            document.getElementById('fileLabel').textContent = file.name;
+        }
+    });
+}
+</script>
+{% endblock %}

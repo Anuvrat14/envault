@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% block title %}Envault{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+
+{% if session.enc_key %}
+<nav class="navbar">
+    <div class="container-fluid px-4">
+        <a class="navbar-brand" href="{{ url_for('projects.dashboard') }}">
+            <i class="fas fa-shield-halved me-2"></i>Envault
+        </a>
+        <div class="d-flex align-items-center gap-3">
+            <a href="{{ url_for('projects.dashboard') }}" class="nav-link {% if request.endpoint == 'projects.dashboard' %}active{% endif %}">
+                <i class="fas fa-folder me-1"></i>Projects
+            </a>
+            <a href="{{ url_for('auth.lock') }}" class="nav-link lock-link" title="Lock vault">
+                <i class="fas fa-lock me-1"></i>Lock
+            </a>
+        </div>
+    </div>
+</nav>
+{% endif %}
+
+<div class="main-content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-container">
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'danger' else ('warning' if category == 'warning' else 'success') }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+</div>
+
+<!-- Clipboard toast -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="clipboardToast" class="toast align-items-center border-0" role="alert">
+        <div class="d-flex">
+            <div class="toast-body">
+                <i class="fas fa-check me-2 text-success"></i>
+                <span id="toastMsg">Copied to clipboard</span>
+            </div>
+            <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

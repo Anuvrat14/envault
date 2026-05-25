@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Projects — Envault{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+
+    <!-- Header -->
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div>
+            <h4 class="mb-0">Projects</h4>
+            <small class="text-muted">{{ projects|length }} project{{ 's' if projects|length != 1 else '' }}</small>
+        </div>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newProjectModal">
+            <i class="fas fa-plus me-2"></i>New Project
+        </button>
+    </div>
+
+    <!-- Project grid -->
+    {% if projects %}
+    <div class="row g-3">
+        {% for project in projects %}
+        <div class="col-md-4 col-lg-3">
+            <div class="project-card">
+                <div class="project-card-accent" style="background: {{ project.color }};"></div>
+                <div class="project-card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="mb-0 project-name">{{ project.name }}</h6>
+                        <span class="var-count">{{ counts[project.id] }}</span>
+                    </div>
+                    {% if project.description %}
+                    <p class="project-desc">{{ project.description }}</p>
+                    {% endif %}
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <small class="text-muted" style="font-size:.75rem;">
+                            {{ project.updated_at.strftime('%b %d, %Y') if project.updated_at else '' }}
+                        </small>
+                        <a href="{{ url_for('projects.view_project', project_id=project.id) }}"
+                           class="btn btn-xs btn-outline-light">
+                            Open <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-folder-open fa-3x mb-3"></i>
+        <h5>No projects yet</h5>
+        <p class="text-muted mb-4">Create a project to start storing encrypted environment variables.</p>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newProjectModal">
+            <i class="fas fa-plus me-2"></i>Create First Project
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- New Project Modal -->
+<div class="modal fade vault-modal" id="newProjectModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog" style="margin-top:80px;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-folder-plus me-2" style="opacity:.6;"></i>New Project</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('projects.create_project') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body px-4 py-3">
+                    <div class="mb-3">
+                        <label class="form-label">Project Name</label>
+                        <input type="text" class="form-control vault-input" name="name"
+                               placeholder="e.g. MyApp Production" required>
+                    </div>
+                    <div class="mb-1">
+                        <label class="form-label">Description <span class="text-muted">(optional)</span></label>
+                        <input type="text" class="form-control vault-input" name="description"
+                               placeholder="e.g. Production environment variables">
+                    </div>
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Create Project
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

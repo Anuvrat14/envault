@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Setup — Envault{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+    <div class="auth-card">
+        <div class="auth-icon mb-4">
+            <i class="fas fa-shield-halved"></i>
+        </div>
+        <h4 class="text-center mb-1">Welcome to Envault</h4>
+        <p class="text-muted text-center mb-4" style="font-size:.9rem;">
+            Create a master password. This is the only key that unlocks your vault —
+            it is never stored anywhere, only a one-way hash is saved.
+        </p>
+
+        {% if error %}
+        <div class="alert alert-danger py-2 px-3 mb-3" style="font-size:.875rem;">
+            <i class="fas fa-exclamation-circle me-2"></i>{{ error }}
+        </div>
+        {% endif %}
+
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mb-3">
+                <label class="form-label">Master Password</label>
+                <input type="password" class="form-control vault-input" name="password"
+                       placeholder="Min. 8 characters" autocomplete="new-password" required>
+            </div>
+            <div class="mb-4">
+                <label class="form-label">Confirm Password</label>
+                <input type="password" class="form-control vault-input" name="confirm"
+                       placeholder="Repeat password" autocomplete="new-password" required>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-vault me-2"></i>Create Vault
+            </button>
+        </form>
+
+        <p class="text-muted text-center mt-4" style="font-size:.78rem; line-height:1.5;">
+            <i class="fas fa-lock me-1"></i>
+            Your variables are encrypted with AES-256-GCM. If you forget your master password,
+            your data cannot be recovered.
+        </p>
+    </div>
+</div>
+{% endblock %}
