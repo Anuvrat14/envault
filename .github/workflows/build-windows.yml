@@ -58,11 +58,7 @@ jobs:
         run: |
           $tag = if ("${{ github.event_name }}" -eq "workflow_dispatch") { "${{ github.event.inputs.tag }}" } else { "${{ github.ref_name }}" }
           $installer = Get-ChildItem dist -Filter "*.exe" | Where-Object { $_.Name -notlike "*envault-server*" } | Select-Object -First 1 -ExpandProperty FullName
-          $yml = Get-ChildItem dist -Filter "*.yml" | Select-Object -First 1 -ExpandProperty FullName
+          $yml = "dist\latest.yml"
           Write-Host "Installer: $installer"
           Write-Host "YML: $yml"
-          if ($yml) {
-            gh release upload $tag $installer $yml --clobber
-          } else {
-            gh release upload $tag $installer --clobber
-          }
+          gh release upload $tag "$installer" $yml --clobber
