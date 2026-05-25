@@ -77,12 +77,18 @@ jobs:
             }
           }
 
-          # Upload installer
+          # Upload installer (use curl.exe — handles large files reliably)
           Write-Host "Uploading installer..."
-          Invoke-RestMethod -Uri "${uploadBase}?name=Envault-Setup-1.2.0.exe" -Method Post -Headers @{ Authorization = "Bearer $env:GH_TOKEN"; "Content-Type" = "application/octet-stream" } -InFile $dest
+          curl.exe -s -S -X POST "${uploadBase}?name=Envault-Setup-1.2.0.exe" `
+            -H "Authorization: Bearer $env:GH_TOKEN" `
+            -H "Content-Type: application/octet-stream" `
+            --data-binary "@$dest"
 
           # Upload latest.yml
           Write-Host "Uploading latest.yml..."
-          Invoke-RestMethod -Uri "${uploadBase}?name=latest.yml" -Method Post -Headers @{ Authorization = "Bearer $env:GH_TOKEN"; "Content-Type" = "text/yaml" } -InFile "dist\latest.yml"
+          curl.exe -s -S -X POST "${uploadBase}?name=latest.yml" `
+            -H "Authorization: Bearer $env:GH_TOKEN" `
+            -H "Content-Type: text/yaml" `
+            --data-binary "@dist\latest.yml"
 
           Write-Host "Done."
