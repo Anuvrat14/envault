@@ -57,8 +57,15 @@ jobs:
         shell: pwsh
         run: |
           $tag = if ("${{ github.event_name }}" -eq "workflow_dispatch") { "${{ github.event.inputs.tag }}" } else { "${{ github.ref_name }}" }
-          $installer = Get-ChildItem dist -Filter "*.exe" | Where-Object { $_.Name -notlike "*envault-server*" } | Select-Object -First 1 -ExpandProperty FullName
+          $installer = Get-ChildItem dist -Filter "*.exe" | Where-Object { $_.Name -notlike "*envault-server*" } | Select-Object -First 1
+          $installerName = $installer.Name
+          $installerPath = $installer.FullName
           $yml = "dist\latest.yml"
-          Write-Host "Installer: $installer"
-          Write-Host "YML: $yml"
-          gh release upload $tag "$installer" $yml --clobber
+          Write-Host "Installer: $installerPath"
+
+          # Delete existing assets so we can re-upload cleanly
+          gh release delete-asset $tag "$installerName" --yes 2>$null || true
+          gh release delete-asset $tag "latest.yml" --yes 2>$null || true
+
+          # Upload fresh
+          gh release upload $tag "$installerPath" $yml
