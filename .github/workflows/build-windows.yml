@@ -10,6 +10,9 @@ on:
         required: true
         default: 'v1.3.0'
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -57,8 +60,6 @@ jobs:
         shell: pwsh
         run: |
           $tag = if ("${{ github.event_name }}" -eq "workflow_dispatch") { "${{ github.event.inputs.tag }}" } else { "${{ github.ref_name }}" }
-
-          # Read version from package.json dynamically
           $version = (Get-Content package.json | ConvertFrom-Json).version
           $installerName = "Dotward-Setup-$version.exe"
 
@@ -68,35 +69,15 @@ jobs:
           Copy-Item $src $dest
           Write-Host "Installer: $dest"
 
-          # Get release info
-          $headers = @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = "application/vnd.github+json" }
-          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/Anuvrat14/dotward/releases/tags/$tag" -Headers $headers
-          $uploadBase = $release.upload_url -replace '\{\?name,label\}', ''
+          # Delete existing assets so re-runs don't fail
+          gh release delete-asset $tag $installerName --yes 2>$null
+          gh release delete-asset $tag "latest.yml" --yes 2>$null
 
-          # Delete existing assets with same names so re-runs don't fail with 422
-          foreach ($asset in $release.assets) {
-            if ($asset.name -eq $installerName -or $asset.name -eq "latest.yml") {
-              Write-Host "Deleting existing asset: $($asset.name)"
-              Invoke-RestMethod -Uri "https://api.github.com/repos/Anuvrat14/dotward/releases/assets/$($asset.id)" -Method Delete -Headers $headers
-            }
-          }
-
-          # Upload installer
+          # Upload using gh (most reliable, handles auth automatically)
           Write-Host "Uploading $installerName..."
-          $r1 = curl.exe --fail -w "`nHTTP_STATUS:%{http_code}" -X POST "${uploadBase}?name=$installerName" `
-            -H "Authorization: Bearer $env:GH_TOKEN" `
-            -H "Content-Type: application/octet-stream" `
-            --data-binary "@$dest"
-          Write-Host $r1
-          if ($LASTEXITCODE -ne 0) { throw "Installer upload failed" }
+          gh release upload $tag $dest --clobber
 
-          # Upload latest.yml
           Write-Host "Uploading latest.yml..."
-          $r2 = curl.exe --fail -w "`nHTTP_STATUS:%{http_code}" -X POST "${uploadBase}?name=latest.yml" `
-            -H "Authorization: Bearer $env:GH_TOKEN" `
-            -H "Content-Type: text/yaml" `
-            --data-binary "@dist\latest.yml"
-          Write-Host $r2
-          if ($LASTEXITCODE -ne 0) { throw "latest.yml upload failed" }
+          gh release upload $tag dist\latest.yml --clobber
 
           Write-Host "Done."
