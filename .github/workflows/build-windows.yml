@@ -57,15 +57,22 @@ jobs:
         shell: pwsh
         run: |
           $tag = if ("${{ github.event_name }}" -eq "workflow_dispatch") { "${{ github.event.inputs.tag }}" } else { "${{ github.ref_name }}" }
-          $installer = Get-ChildItem dist -Filter "*.exe" | Where-Object { $_.Name -notlike "*envault-server*" } | Select-Object -First 1
-          $installerName = $installer.Name
-          $installerPath = $installer.FullName
-          $yml = "dist\latest.yml"
-          Write-Host "Installer: $installerPath"
 
-          # Delete existing assets so we can re-upload cleanly
-          gh release delete-asset $tag "$installerName" --yes 2>$null || true
-          gh release delete-asset $tag "latest.yml" --yes 2>$null || true
+          # Rename installer to remove spaces before uploading
+          $src = Get-ChildItem dist -Filter "*.exe" | Where-Object { $_.Name -notlike "*envault-server*" } | Select-Object -First 1 -ExpandProperty FullName
+          $dest = "dist\Envault-Setup-1.2.0.exe"
+          Copy-Item $src $dest
+          Write-Host "Renamed to: $dest"
 
-          # Upload fresh
-          gh release upload $tag "$installerPath" $yml
+          # Get release upload URL via API
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/Anuvrat14/envault/releases/tags/$tag" -Headers @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = "application/vnd.github+json" }
+          $uploadBase = $release.upload_url -replace '\{\?name,label\}', ''
+          Write-Host "Upload URL base: $uploadBase"
+
+          # Upload installer
+          Invoke-RestMethod -Uri "${uploadBase}?name=Envault-Setup-1.2.0.exe" -Method Post -Headers @{ Authorization = "Bearer $env:GH_TOKEN"; "Content-Type" = "application/octet-stream" } -InFile $dest
+
+          # Upload latest.yml
+          Invoke-RestMethod -Uri "${uploadBase}?name=latest.yml" -Method Post -Headers @{ Authorization = "Bearer $env:GH_TOKEN"; "Content-Type" = "text/yaml" } -InFile "dist\latest.yml"
+
+          Write-Host "Upload complete."
