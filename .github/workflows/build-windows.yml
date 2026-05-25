@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag to upload artifacts to (e.g. v1.2.0)'
+        description: 'Release tag to upload artifacts to (e.g. v1.3.0)'
         required: true
-        default: 'v1.2.0'
+        default: 'v1.3.0'
 
 jobs:
   build-windows:
@@ -58,11 +58,15 @@ jobs:
         run: |
           $tag = if ("${{ github.event_name }}" -eq "workflow_dispatch") { "${{ github.event.inputs.tag }}" } else { "${{ github.ref_name }}" }
 
-          # Rename installer to remove spaces before uploading
+          # Read version from package.json dynamically
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          $installerName = "Dotward-Setup-$version.exe"
+
+          # Find and rename installer (removes spaces)
           $src = Get-ChildItem dist -Filter "*.exe" | Where-Object { $_.Name -notlike "*dotward-server*" } | Select-Object -First 1 -ExpandProperty FullName
-          $dest = "dist\Dotward-Setup-1.2.0.exe"
+          $dest = "dist\$installerName"
           Copy-Item $src $dest
-          Write-Host "Renamed to: $dest"
+          Write-Host "Installer: $dest"
 
           # Get release info
           $headers = @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = "application/vnd.github+json" }
@@ -71,28 +75,28 @@ jobs:
 
           # Delete existing assets with same names so re-runs don't fail with 422
           foreach ($asset in $release.assets) {
-            if ($asset.name -eq "Dotward-Setup-1.2.0.exe" -or $asset.name -eq "latest.yml") {
+            if ($asset.name -eq $installerName -or $asset.name -eq "latest.yml") {
               Write-Host "Deleting existing asset: $($asset.name)"
               Invoke-RestMethod -Uri "https://api.github.com/repos/Anuvrat14/dotward/releases/assets/$($asset.id)" -Method Delete -Headers $headers
             }
           }
 
-          # Upload installer (use curl.exe — handles large files reliably)
-          Write-Host "Uploading installer..."
-          $result = curl.exe --fail -w "`nHTTP_STATUS:%{http_code}" -X POST "${uploadBase}?name=Dotward-Setup-1.2.0.exe" `
+          # Upload installer
+          Write-Host "Uploading $installerName..."
+          $r1 = curl.exe --fail -w "`nHTTP_STATUS:%{http_code}" -X POST "${uploadBase}?name=$installerName" `
             -H "Authorization: Bearer $env:GH_TOKEN" `
             -H "Content-Type: application/octet-stream" `
             --data-binary "@$dest"
-          Write-Host $result
+          Write-Host $r1
           if ($LASTEXITCODE -ne 0) { throw "Installer upload failed" }
 
           # Upload latest.yml
           Write-Host "Uploading latest.yml..."
-          $result2 = curl.exe --fail -w "`nHTTP_STATUS:%{http_code}" -X POST "${uploadBase}?name=latest.yml" `
+          $r2 = curl.exe --fail -w "`nHTTP_STATUS:%{http_code}" -X POST "${uploadBase}?name=latest.yml" `
             -H "Authorization: Bearer $env:GH_TOKEN" `
             -H "Content-Type: text/yaml" `
             --data-binary "@dist\latest.yml"
-          Write-Host $result2
+          Write-Host $r2
           if ($LASTEXITCODE -ne 0) { throw "latest.yml upload failed" }
 
           Write-Host "Done."
