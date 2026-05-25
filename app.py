@@ -32,17 +32,41 @@ def create_app():
     db.init_app(app)
     csrf.init_app(app)
 
+    # Jinja globals
+    from datetime import datetime, timezone
+    app.jinja_env.globals['now_utc'] = lambda: datetime.now(timezone.utc)
+
     # Blueprints
     from routes.auth     import auth_bp
     from routes.projects import projects_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(projects_bp)
 
-    # Create tables
+    # Create tables + migrate existing DBs
     with app.app_context():
         db.create_all()
+        _migrate_db(app)
 
     return app
+
+
+def _migrate_db(app):
+    """Add new columns to existing databases that predate them."""
+    from sqlalchemy import text
+    new_columns = [
+        ('env_variables', 'expires_at',    'DATETIME'),
+        ('env_variables', 'rotation_days', 'INTEGER'),
+        ('env_variables', 'last_rotated',  'DATETIME'),
+        ('env_variables', 'risk_level',    'VARCHAR(10)'),
+        ('env_variables', 'risk_notes',    'TEXT'),
+    ]
+    with db.engine.connect() as conn:
+        for table, column, col_type in new_columns:
+            try:
+                conn.execute(text(f'ALTER TABLE {table} ADD COLUMN {column} {col_type}'))
+                conn.commit()
+            except Exception:
+                pass  # Column already exists
 
 
 def _get_or_create_secret(data_dir: str) -> str:

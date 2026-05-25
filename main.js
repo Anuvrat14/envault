@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell } = require('electron');
+const { app, BrowserWindow, shell, Notification } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const http = require('http');
@@ -38,6 +38,7 @@ function waitForFlask(retries = 30) {
 
 // ── Create BrowserWindow ───────────────────────────────────────────────────
 function createWindow() {
+    startNotificationPolling();
     mainWindow = new BrowserWindow({
         width: 1100,
         height: 720,
@@ -87,3 +88,35 @@ app.on('activate', () => {
 app.on('before-quit', () => {
     if (flaskProcess) flaskProcess.kill();
 });
+
+// ── Notification polling ───────────────────────────────────────────────────
+const _notifiedKeys = new Set();
+
+function startNotificationPolling() {
+    setInterval(() => {
+        http.get(`http://127.0.0.1:${PORT}/api/notifications/check`, res => {
+            let body = '';
+            res.on('data', chunk => body += chunk);
+            res.on('end', () => {
+                try {
+                    const data = JSON.parse(body);
+                    (data.notifications || []).forEach(n => {
+                        const dedupeKey = `${n.type}:${n.project}:${n.key}`;
+                        if (_notifiedKeys.has(dedupeKey)) return;
+                        _notifiedKeys.add(dedupeKey);
+                        // Clear dedupe after 6 hours so it can fire again
+                        setTimeout(() => _notifiedKeys.delete(dedupeKey), 6 * 60 * 60 * 1000);
+                        if (Notification.isSupported()) {
+                            const icon = n.type === 'expired' || n.type === 'risk' ? '🔴' : '🟡';
+                            new Notification({
+                                title: `Envault ${icon}`,
+                                body:  n.message,
+                                silent: false,
+                            }).show();
+                        }
+                    });
+                } catch (_) {}
+            });
+        }).on('error', () => {});
+    }, 60_000); // every 60 seconds
+}

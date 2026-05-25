@@ -51,6 +51,13 @@ class EnvVariable(db.Model):
     key             = db.Column(db.String(200), nullable=False)
     encrypted_value = db.Column(db.Text, nullable=False)   # AES-256-GCM blob
     notes           = db.Column(db.String(500), nullable=True)
+    # Expiry / rotation
+    expires_at      = db.Column(db.DateTime, nullable=True)
+    rotation_days   = db.Column(db.Integer, nullable=True)   # e.g. 90
+    last_rotated    = db.Column(db.DateTime, nullable=True)
+    # Risk analysis
+    risk_level      = db.Column(db.String(10), nullable=True)  # none/low/medium/high/critical
+    risk_notes      = db.Column(db.Text, nullable=True)
     created_at      = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at      = db.Column(db.DateTime,
                                 default=lambda: datetime.now(timezone.utc),

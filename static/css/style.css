@@ -449,6 +449,71 @@ code {
     border-radius: 9px;
 }
 
+/* ── Risk badges ────────────────────────────────────────── */
+.risk-badge {
+    font-size: .62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    padding: .15rem .42rem;
+    border-radius: 4px;
+    border: 1px solid;
+    text-shadow: none;
+}
+.risk-low      { background: rgba(52,152,219,.15);  border-color: rgba(52,152,219,.3);  color: #5dade2; }
+.risk-medium   { background: rgba(241,196,15,.15);  border-color: rgba(241,196,15,.3);  color: #f4d03f; }
+.risk-high     { background: rgba(230,126,34,.18);  border-color: rgba(230,126,34,.35); color: #f0a500; }
+.risk-critical { background: rgba(231,76,60,.18);   border-color: rgba(231,76,60,.35);  color: #e74c3c; }
+
+/* ── Expiry badges ──────────────────────────────────────── */
+.expiry-badge {
+    font-size: .72rem;
+    font-weight: 600;
+    padding: .18rem .45rem;
+    border-radius: 5px;
+    border: 1px solid;
+    text-shadow: none;
+    white-space: nowrap;
+}
+.expiry-ok      { background: rgba(46,204,113,.10); border-color: rgba(46,204,113,.2); color: #2ecc71; }
+.expiry-soon    { background: rgba(241,196,15,.12); border-color: rgba(241,196,15,.3); color: #f4d03f; }
+.expiry-expired { background: rgba(231,76,60,.15);  border-color: rgba(231,76,60,.3);  color: #e74c3c; }
+
+.btn-set-expiry {
+    background: transparent;
+    border: 1px dashed var(--border-md);
+    color: var(--muted);
+    border-radius: 5px;
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: .72rem;
+    transition: all .15s;
+    padding: 0;
+}
+.btn-set-expiry:hover { border-color: rgba(100,160,255,.5); color: var(--primary); }
+
+/* ── Row highlights ─────────────────────────────────────── */
+.row-expired  td { background: rgba(231,76,60,.04) !important; }
+.row-expiring td { background: rgba(241,196,15,.04) !important; }
+
+/* ── Preset day buttons ─────────────────────────────────── */
+.preset-btn {
+    background: var(--glass);
+    border: 1px solid var(--border-md);
+    color: var(--text);
+    border-radius: 5px;
+    padding: .2rem .6rem;
+    font-size: .75rem;
+    cursor: pointer;
+    transition: all .15s;
+    text-shadow: none;
+}
+.preset-btn:hover { background: var(--glass-hover); border-color: rgba(100,160,255,.4); color: var(--primary); }
+
 /* ── Bootstrap overrides — force all muted/secondary text bright ── */
 .text-muted,
 .text-secondary,

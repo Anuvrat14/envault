@@ -18,16 +18,13 @@
             </div>
         </div>
         <div class="d-flex gap-2">
-            <!-- Import -->
             <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#importModal">
                 <i class="fas fa-file-import me-1"></i>Import .env
             </button>
-            <!-- Export -->
             <a href="{{ url_for('projects.export_env', project_id=project.id) }}"
                class="btn btn-sm btn-outline-light">
                 <i class="fas fa-file-export me-1"></i>Export .env
             </a>
-            <!-- Add variable -->
             <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addVarModal">
                 <i class="fas fa-plus me-1"></i>Add Variable
             </button>
@@ -40,47 +37,98 @@
         <table class="var-table">
             <thead>
                 <tr>
-                    <th style="width:35%">Key</th>
+                    <th style="width:26%">Key</th>
                     <th>Value</th>
-                    <th style="width:22%">Notes</th>
-                    <th style="width:80px;"></th>
+                    <th style="width:12%">Expiry</th>
+                    <th style="width:16%">Notes</th>
+                    <th style="width:100px;"></th>
                 </tr>
             </thead>
             <tbody>
                 {% for var in project.variables %}
-                <tr>
+                {% set is_expired    = var.expires_at and var.expires_at < now_utc() %}
+                {% set days_left     = ((var.expires_at - now_utc()).days) if var.expires_at and not is_expired else none %}
+                {% set expiring_soon = days_left is not none and days_left <= 7 %}
+                <tr class="{{ 'row-expired' if is_expired else ('row-expiring' if expiring_soon else '') }}">
+
+                    <!-- Key + risk badge -->
                     <td>
-                        <code class="var-key">{{ var.key }}</code>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <code class="var-key">{{ var.key }}</code>
+                            {% if var.risk_level and var.risk_level not in ('none', 'dismissed', None) %}
+                            <span class="risk-badge risk-{{ var.risk_level }}"
+                                  title="{{ var.risk_notes or '' }}">
+                                {{ var.risk_level }}
+                            </span>
+                            {% endif %}
+                        </div>
                     </td>
+
+                    <!-- Value -->
                     <td>
                         <div class="d-flex align-items-center gap-2">
                             <span class="var-masked" id="val-{{ var.id }}">••••••••••••</span>
                             <button class="btn-reveal" id="btn-reveal-{{ var.id }}"
-                                    onclick="toggleReveal({{ var.id }}, {{ project.id }})"
-                                    title="Reveal">
+                                    onclick="toggleReveal({{ var.id }}, {{ project.id }})" title="Reveal">
                                 <i class="fas fa-eye" id="icon-{{ var.id }}"></i>
                             </button>
                             <button class="btn-copy"
-                                    onclick="copyValue({{ var.id }}, {{ project.id }})"
-                                    title="Copy to clipboard">
+                                    onclick="copyValue({{ var.id }}, {{ project.id }})" title="Copy">
                                 <i class="fas fa-copy"></i>
                             </button>
                         </div>
                     </td>
+
+                    <!-- Expiry -->
                     <td>
-                        <span class="text-muted" style="font-size:.8rem;">
-                            {{ var.notes or '' }}
+                        {% if is_expired %}
+                        <span class="expiry-badge expiry-expired" title="Expired — rotate now">
+                            <i class="fas fa-circle-exclamation me-1"></i>Expired
                         </span>
+                        {% elif expiring_soon %}
+                        <span class="expiry-badge expiry-soon" title="{{ var.expires_at.strftime('%Y-%m-%d') }}">
+                            {{ days_left }}d left
+                        </span>
+                        {% elif var.expires_at %}
+                        <span class="expiry-badge expiry-ok" title="{{ var.expires_at.strftime('%Y-%m-%d') }}">
+                            {{ days_left }}d
+                        </span>
+                        {% else %}
+                        <button class="btn-set-expiry"
+                                onclick="openExpiryModal({{ var.id }}, '{{ var.key }}')" title="Set expiry">
+                            <i class="fas fa-clock"></i>
+                        </button>
+                        {% endif %}
                     </td>
+
+                    <!-- Notes -->
+                    <td style="font-size:.78rem; opacity:.88;">{{ var.notes or '' }}</td>
+
+                    <!-- Actions -->
                     <td class="text-end">
-                        <form method="POST"
-                              action="{{ url_for('projects.delete_variable', project_id=project.id, var_id=var.id) }}"
-                              onsubmit="return confirm('Delete {{ var.key }}?');">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn-del" title="Delete">
-                                <i class="fas fa-trash"></i>
+                        <div class="d-flex justify-content-end gap-1">
+                            {% if var.expires_at %}
+                            <button class="btn-reveal"
+                                    onclick="openExpiryModal({{ var.id }}, '{{ var.key }}')" title="Edit expiry">
+                                <i class="fas fa-clock"></i>
                             </button>
-                        </form>
+                            {% endif %}
+                            {% if var.risk_level and var.risk_level not in ('none', 'dismissed', None) %}
+                            <button class="btn-reveal"
+                                    onclick="dismissRisk({{ var.id }}, {{ project.id }}, this)"
+                                    title="Mark as reviewed">
+                                <i class="fas fa-shield"></i>
+                            </button>
+                            {% endif %}
+                            <form method="POST"
+                                  action="{{ url_for('projects.delete_variable', project_id=project.id, var_id=var.id) }}"
+                                  onsubmit="return confirm('Delete {{ var.key }}?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn-del" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
@@ -103,16 +151,16 @@
 
     <!-- Danger zone -->
     <div class="danger-zone mt-5">
-        <small class="text-muted d-block mb-2">Danger Zone</small>
+        <small class="d-block mb-2" style="opacity:.7;">Danger Zone</small>
         <div class="d-flex align-items-center justify-content-between">
             <div>
                 <strong style="font-size:.875rem;">Delete Project</strong>
-                <p class="text-muted mb-0" style="font-size:.8rem;">
+                <p class="mb-0" style="font-size:.8rem; opacity:.8;">
                     Permanently deletes this project and all {{ project.variables|length }} variable(s).
                 </p>
             </div>
             <form method="POST" action="{{ url_for('projects.delete_project', project_id=project.id) }}"
-                  onsubmit="return confirm('Delete project {{ project.name }} and all its variables? This cannot be undone.');">
+                  onsubmit="return confirm('Delete project {{ project.name }} and all its variables?');">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-sm btn-outline-danger">
                     <i class="fas fa-trash me-1"></i>Delete Project
@@ -146,14 +194,12 @@
                                placeholder="Value (encrypted at rest)" autocomplete="off">
                         <div class="form-check mt-2">
                             <input class="form-check-input" type="checkbox" id="showAddValue"
-                                   onchange="toggleInputType('addValueInput', this)">
-                            <label class="form-check-label" for="showAddValue" style="font-size:.8rem; color:rgba(255,255,255,.4);">
-                                Show value
-                            </label>
+                                   onchange="toggleInputType(this)">
+                            <label class="form-check-label" for="showAddValue">Show value</label>
                         </div>
                     </div>
                     <div class="mb-1">
-                        <label class="form-label">Notes <span class="text-muted">(optional)</span></label>
+                        <label class="form-label">Notes <span style="opacity:.5;">(optional)</span></label>
                         <input type="text" class="form-control vault-input" name="notes"
                                placeholder="e.g. PostgreSQL connection string">
                     </div>
@@ -185,20 +231,62 @@
                          onclick="document.getElementById('envFileInput').click()">
                         <i class="fas fa-file-arrow-up fa-2x mb-2" style="opacity:.4;"></i>
                         <p class="mb-1">Drop your .env file here</p>
-                        <small class="text-muted">or click to browse</small>
+                        <small>or click to browse</small>
                         <input type="file" id="envFileInput" name="env_file"
                                accept=".env,.txt" style="display:none;"
                                onchange="updateDropLabel(this)">
                     </div>
-                    <p id="fileLabel" class="text-muted text-center mt-2" style="font-size:.8rem;"></p>
+                    <p id="fileLabel" class="text-center mt-2" style="font-size:.8rem;"></p>
                     <div class="hint mt-2">
                         Existing keys will be overwritten. Lines starting with <code>#</code> are ignored.
+                        Risk analysis runs automatically on import.
                     </div>
                 </div>
                 <div class="modal-footer d-flex justify-content-between">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-file-import me-2"></i>Import &amp; Encrypt
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Set Expiry Modal -->
+<div class="modal fade vault-modal" id="expiryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog" style="margin-top:80px;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-clock me-2" style="opacity:.6;"></i>Set Rotation Reminder</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="expiryForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body px-4 py-3">
+                    <p id="expiryVarName" style="font-size:.85rem; opacity:.8;" class="mb-3"></p>
+                    <div class="mb-3">
+                        <label class="form-label">Rotate every (days)</label>
+                        <div class="d-flex gap-2 mb-2">
+                            <button type="button" class="preset-btn" onclick="setDays(30)">30d</button>
+                            <button type="button" class="preset-btn" onclick="setDays(60)">60d</button>
+                            <button type="button" class="preset-btn" onclick="setDays(90)">90d</button>
+                            <button type="button" class="preset-btn" onclick="setDays(180)">180d</button>
+                            <button type="button" class="preset-btn" onclick="setDays(365)">1yr</button>
+                        </div>
+                        <input type="number" class="form-control vault-input" name="rotation_days"
+                               id="rotationDaysInput" min="1" placeholder="e.g. 90">
+                        <div class="hint">Envault will notify you when rotation is due.</div>
+                    </div>
+                    <div class="mb-1">
+                        <label class="form-label">Or set a specific date</label>
+                        <input type="date" class="form-control vault-input" name="expires_at" id="expiresAtInput">
+                    </div>
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-clock me-2"></i>Set Reminder
                     </button>
                 </div>
             </form>
@@ -214,9 +302,8 @@ const revealedValues = {};
 
 async function fetchValue(varId, projectId) {
     if (revealedValues[varId] !== undefined) return revealedValues[varId];
-    const res = await fetch(`/projects/${projectId}/variables/${varId}/copy`, {
-        method: 'POST',
-        headers: { 'X-CSRFToken': CSRF }
+    const res  = await fetch(`/projects/${projectId}/variables/${varId}/copy`, {
+        method: 'POST', headers: { 'X-CSRFToken': CSRF }
     });
     const data = await res.json();
     if (data.error) { showToast(data.error, true); return null; }
@@ -248,6 +335,32 @@ async function copyValue(varId, projectId) {
     setTimeout(() => navigator.clipboard.writeText(''), 30000);
 }
 
+async function dismissRisk(varId, projectId, btn) {
+    const res  = await fetch(`/projects/${projectId}/variables/${varId}/dismiss-risk`, {
+        method: 'POST', headers: { 'X-CSRFToken': CSRF }
+    });
+    const data = await res.json();
+    if (data.status === 'ok') {
+        const row = btn.closest('tr');
+        row.querySelector('.risk-badge')?.remove();
+        btn.remove();
+        showToast('Risk dismissed');
+    }
+}
+
+function openExpiryModal(varId, varKey) {
+    document.getElementById('expiryForm').action = `/projects/{{ project.id }}/variables/${varId}/expiry`;
+    document.getElementById('expiryVarName').textContent = `Variable: ${varKey}`;
+    document.getElementById('rotationDaysInput').value = '';
+    document.getElementById('expiresAtInput').value = '';
+    new bootstrap.Modal(document.getElementById('expiryModal')).show();
+}
+
+function setDays(n) {
+    document.getElementById('rotationDaysInput').value = n;
+    document.getElementById('expiresAtInput').value = '';
+}
+
 function showToast(msg, isError = false) {
     const toast = document.getElementById('clipboardToast');
     document.getElementById('toastMsg').textContent = msg;
@@ -255,16 +368,22 @@ function showToast(msg, isError = false) {
     new bootstrap.Toast(toast, { delay: 2500 }).show();
 }
 
-function toggleInputType(inputId, checkbox) {
-    // repurposed: just toggle the adjacent password input
+function toggleInputType(checkbox) {
     const input = checkbox.closest('form').querySelector('input[name="value"]');
     if (input) input.type = checkbox.checked ? 'text' : 'password';
 }
 
 function updateDropLabel(input) {
-    const label = document.getElementById('fileLabel');
-    label.textContent = input.files[0] ? input.files[0].name : '';
+    document.getElementById('fileLabel').textContent = input.files[0] ? input.files[0].name : '';
 }
+
+// Clear rotation days if specific date entered and vice versa
+document.getElementById('expiresAtInput')?.addEventListener('input', function() {
+    if (this.value) document.getElementById('rotationDaysInput').value = '';
+});
+document.getElementById('rotationDaysInput')?.addEventListener('input', function() {
+    if (this.value) document.getElementById('expiresAtInput').value = '';
+});
 
 // Drag-and-drop
 const dz = document.getElementById('dropZone');
@@ -272,8 +391,7 @@ if (dz) {
     dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
     dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
     dz.addEventListener('drop', e => {
-        e.preventDefault();
-        dz.classList.remove('drag-over');
+        e.preventDefault(); dz.classList.remove('drag-over');
         const file = e.dataTransfer.files[0];
         if (file) {
             document.getElementById('envFileInput').files = e.dataTransfer.files;
