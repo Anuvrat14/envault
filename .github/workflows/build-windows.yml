@@ -3,6 +3,12 @@ name: Build Windows
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to upload artifacts to (e.g. v1.2.0)'
+        required: true
+        default: 'v1.2.0'
 
 jobs:
   build-windows:
@@ -47,4 +53,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          gh release upload ${{ github.ref_name }} dist\Envault-Setup-*.exe dist\latest.yml --clobber
+          $tag = if ("${{ github.event_name }}" -eq "workflow_dispatch") { "${{ github.event.inputs.tag }}" } else { "${{ github.ref_name }}" }
+          gh release upload $tag dist\Envault-Setup-*.exe dist\latest.yml --clobber
