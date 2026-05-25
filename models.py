@@ -1,5 +1,5 @@
 """
-Database models for Envault.
+Database models for Dotward.
 SQLite via SQLAlchemy — fully local, no external DB.
 """
 import enum

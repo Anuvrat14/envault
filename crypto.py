@@ -1,5 +1,5 @@
 """
-Cryptographic primitives for Envault.
+Cryptographic primitives for Dotward.
 AES-256-GCM for variable encryption, PBKDF2-SHA256 for key derivation.
 Key never touches disk — lives in memory only.
 """

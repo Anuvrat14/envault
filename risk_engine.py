@@ -1,5 +1,5 @@
 """
-Envault Risk Engine
+Dotward Risk Engine
 Analyses env variable key/value pairs for security conformance issues.
 Returns a (risk_level, notes) tuple — never stores plaintext values.
 """
