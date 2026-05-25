@@ -25,19 +25,22 @@ echo "        ✓ DMG built"
 echo ""
 echo "  [3/4] Creating GitHub release $TAG..."
 gh release delete $TAG --yes 2>/dev/null || true
-gh release create $TAG \
-  --title "Dotward $TAG" \
-  --notes "Dotward $TAG" \
-  --draft
-echo "        ✓ Release created (draft)"
+
+RELEASE_JSON=$(gh api repos/Anuvrat14/dotward/releases \
+  --method POST \
+  --field tag_name="$TAG" \
+  --field name="Dotward $TAG" \
+  --field body="Dotward $TAG" \
+  --field draft=true)
+
+RELEASE_ID=$(echo $RELEASE_JSON | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+UPLOAD_URL=$(echo $RELEASE_JSON | python3 -c "import sys,json; print(json.load(sys.stdin)['upload_url'].replace('{?name,label}',''))")
+echo "        ✓ Release created (draft, id=$RELEASE_ID)"
 
 # ── Step 4: Upload assets one by one with progress ────────────────────────
 echo ""
 echo "  [4/4] Uploading assets..."
 echo ""
-
-RELEASE_JSON=$(gh api repos/Anuvrat14/dotward/releases/tags/$TAG)
-UPLOAD_URL=$(echo $RELEASE_JSON | python3 -c "import sys,json; print(json.load(sys.stdin)['upload_url'].replace('{?name,label}',''))")
 
 upload_file() {
   local filepath="$1"
@@ -61,7 +64,9 @@ upload_file "dist/latest-mac.yml"                    "text/yaml"
 # ── Publish ────────────────────────────────────────────────────────────────
 echo ""
 echo "  Publishing release..."
-gh release edit $TAG --draft=false
+gh api repos/Anuvrat14/dotward/releases/$RELEASE_ID \
+  --method PATCH \
+  --field draft=false > /dev/null
 echo ""
 echo "  ✓ Dotward $TAG released!"
 echo "  https://github.com/Anuvrat14/dotward/releases/tag/$TAG"
