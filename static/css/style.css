@@ -11,7 +11,7 @@
     --border:       rgba(255, 255, 255, 0.06);
     --border-md:    rgba(255, 255, 255, 0.10);
     --text:         rgba(255, 255, 255, 1.00);
-    --muted:        rgba(255, 255, 255, 0.65);
+    --muted:        rgba(255, 255, 255, 0.85);
     --primary:      rgba(140, 190, 255, 1.00);
     --primary-glow: rgba(100, 160, 255, 0.18);
     --danger:       rgba(231, 76, 60, 0.85);
@@ -69,12 +69,14 @@ code {
 .navbar-brand i { color: var(--primary); }
 
 .nav-link {
-    color: var(--muted) !important;
+    color: rgba(255, 255, 255, 0.85) !important;
     text-decoration: none;
     font-size: .825rem;
+    font-weight: 500;
     transition: color .15s;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.9);
 }
-.nav-link:hover, .nav-link.active { color: var(--text) !important; }
+.nav-link:hover, .nav-link.active { color: #ffffff !important; }
 .nav-link.lock-link:hover          { color: var(--danger) !important; }
 
 /* ── Main content ───────────────────────────────────────── */
@@ -171,7 +173,7 @@ code {
 
 .hint {
     font-size: .72rem;
-    color: var(--muted);
+    color: rgba(255, 255, 255, 0.75);
     margin-top: .3rem;
 }
 
@@ -286,7 +288,7 @@ code {
 
 .project-desc {
     font-size: .75rem;
-    color: var(--muted);
+    color: rgba(255, 255, 255, 0.80);
     margin-bottom: 0;
     white-space: nowrap;
     overflow: hidden;
@@ -319,7 +321,7 @@ code {
     font-size: .67rem;
     text-transform: uppercase;
     letter-spacing: .08em;
-    color: var(--muted);
+    color: rgba(255, 255, 255, 0.80);
     padding: .65rem 1rem;
     border-bottom: 1px solid var(--border);
     font-weight: 500;
@@ -347,7 +349,7 @@ code {
 .var-masked {
     font-family: 'SF Mono', 'Courier New', monospace;
     font-size: .82rem;
-    color: rgba(255, 255, 255, 0.55);
+    color: rgba(255, 255, 255, 0.80);
     letter-spacing: .04em;
     min-width: 100px;
     display: inline-block;
@@ -383,9 +385,9 @@ code {
 .empty-state {
     text-align: center;
     padding: 4rem 1rem;
-    color: var(--muted);
+    color: rgba(255, 255, 255, 0.85);
 }
-.empty-state h5 { color: var(--text); }
+.empty-state h5 { color: #ffffff; }
 
 /* ── Danger zone ────────────────────────────────────────── */
 .danger-zone {
@@ -462,7 +464,7 @@ code {
     background-color: rgba(79, 130, 230, 0.75) !important;
     border-color: rgba(79, 130, 230, 0.5) !important;
 }
-.form-check-label { color: var(--muted); font-size: .8rem; }
+.form-check-label { color: rgba(255,255,255,0.85); font-size: .8rem; }
 
 /* ── Alert overrides ────────────────────────────────────── */
 .alert-success {
