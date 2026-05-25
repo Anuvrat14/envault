@@ -64,15 +64,25 @@ jobs:
           Copy-Item $src $dest
           Write-Host "Renamed to: $dest"
 
-          # Get release upload URL via API
-          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/Anuvrat14/envault/releases/tags/$tag" -Headers @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = "application/vnd.github+json" }
+          # Get release info
+          $headers = @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = "application/vnd.github+json" }
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/Anuvrat14/envault/releases/tags/$tag" -Headers $headers
           $uploadBase = $release.upload_url -replace '\{\?name,label\}', ''
-          Write-Host "Upload URL base: $uploadBase"
+
+          # Delete existing assets with same names so re-runs don't fail with 422
+          foreach ($asset in $release.assets) {
+            if ($asset.name -eq "Envault-Setup-1.2.0.exe" -or $asset.name -eq "latest.yml") {
+              Write-Host "Deleting existing asset: $($asset.name)"
+              Invoke-RestMethod -Uri "https://api.github.com/repos/Anuvrat14/envault/releases/assets/$($asset.id)" -Method Delete -Headers $headers
+            }
+          }
 
           # Upload installer
+          Write-Host "Uploading installer..."
           Invoke-RestMethod -Uri "${uploadBase}?name=Envault-Setup-1.2.0.exe" -Method Post -Headers @{ Authorization = "Bearer $env:GH_TOKEN"; "Content-Type" = "application/octet-stream" } -InFile $dest
 
           # Upload latest.yml
+          Write-Host "Uploading latest.yml..."
           Invoke-RestMethod -Uri "${uploadBase}?name=latest.yml" -Method Post -Headers @{ Authorization = "Bearer $env:GH_TOKEN"; "Content-Type" = "text/yaml" } -InFile "dist\latest.yml"
 
-          Write-Host "Upload complete."
+          Write-Host "Done."
