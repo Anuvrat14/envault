@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+dist/
+node_modules/
+*.db
+.flask_secret
+.DS_Store
+build/
+*.egg-info/
