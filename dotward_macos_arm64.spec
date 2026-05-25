@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-# Vaultic macOS ARM64 PyInstaller Spec
+# Dotward macOS ARM64 PyInstaller Spec
 
 import os
 REPO_ROOT = os.path.abspath(SPECPATH)
@@ -105,7 +105,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='vaultic-server',
+    name='dotward-server',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

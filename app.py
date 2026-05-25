@@ -1,5 +1,5 @@
 """
-Vaultic — Flask application factory.
+Dotward — Flask application factory.
 """
 import os
 
@@ -15,12 +15,12 @@ def create_app():
     app = Flask(__name__)
 
     # Config
-    data_dir = os.path.join(os.path.expanduser('~'), '.vaultic')
+    data_dir = os.path.join(os.path.expanduser('~'), '.dotward')
     os.makedirs(data_dir, exist_ok=True)
 
     app.config.update(
         SECRET_KEY=_get_or_create_secret(data_dir),
-        SQLALCHEMY_DATABASE_URI=f'sqlite:///{os.path.join(data_dir, "vaultic.db")}',
+        SQLALCHEMY_DATABASE_URI=f'sqlite:///{os.path.join(data_dir, "dotward.db")}',
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE='Lax',

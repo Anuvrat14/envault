@@ -237,18 +237,18 @@ def download_cli_token():
     return Response(
         config.cli_token + '\n',
         mimetype='text/plain',
-        headers={'Content-Disposition': 'attachment; filename="vaultic_cli_token"'}
+        headers={'Content-Disposition': 'attachment; filename="dotward_cli_token"'}
     )
 
 
 @auth_bp.route('/cli/download')
 def download_cli_script():
-    """Serve the vaultic CLI Python script as a download."""
+    """Serve the dotward CLI Python script as a download."""
     import os
     from flask import send_file
-    script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'vaultic_cli.py')
+    script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'dotward_cli.py')
     return send_file(script_path, as_attachment=True,
-                     download_name='vaultic', mimetype='text/x-python')
+                     download_name='dotward', mimetype='text/x-python')
 
 
 @auth_bp.route('/cli-docs')
@@ -304,7 +304,7 @@ def download_codes():
     from datetime import datetime, timezone
     timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
     lines = [
-        'VAULTIC BACKUP CODES',
+        'DOTWARD BACKUP CODES',
         '====================',
         f'Generated: {timestamp}',
         '',
@@ -323,7 +323,7 @@ def download_codes():
     return Response(
         '\n'.join(lines) + '\n',
         mimetype='text/plain',
-        headers={'Content-Disposition': 'attachment; filename="vaultic-backup-codes.txt"'}
+        headers={'Content-Disposition': 'attachment; filename="dotward-backup-codes.txt"'}
     )
 
 

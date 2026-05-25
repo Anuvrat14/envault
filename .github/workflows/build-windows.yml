@@ -34,7 +34,7 @@ jobs:
       - name: Build Flask server binary
         run: |
           venv\Scripts\activate
-          pyinstaller vaultic_windows.spec --noconfirm
+          pyinstaller dotward_windows.spec --noconfirm
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -59,27 +59,27 @@ jobs:
           $tag = if ("${{ github.event_name }}" -eq "workflow_dispatch") { "${{ github.event.inputs.tag }}" } else { "${{ github.ref_name }}" }
 
           # Rename installer to remove spaces before uploading
-          $src = Get-ChildItem dist -Filter "*.exe" | Where-Object { $_.Name -notlike "*vaultic-server*" } | Select-Object -First 1 -ExpandProperty FullName
-          $dest = "dist\Vaultic-Setup-1.2.0.exe"
+          $src = Get-ChildItem dist -Filter "*.exe" | Where-Object { $_.Name -notlike "*dotward-server*" } | Select-Object -First 1 -ExpandProperty FullName
+          $dest = "dist\Dotward-Setup-1.2.0.exe"
           Copy-Item $src $dest
           Write-Host "Renamed to: $dest"
 
           # Get release info
           $headers = @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = "application/vnd.github+json" }
-          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/Anuvrat14/vaultic/releases/tags/$tag" -Headers $headers
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/Anuvrat14/dotward/releases/tags/$tag" -Headers $headers
           $uploadBase = $release.upload_url -replace '\{\?name,label\}', ''
 
           # Delete existing assets with same names so re-runs don't fail with 422
           foreach ($asset in $release.assets) {
-            if ($asset.name -eq "Vaultic-Setup-1.2.0.exe" -or $asset.name -eq "latest.yml") {
+            if ($asset.name -eq "Dotward-Setup-1.2.0.exe" -or $asset.name -eq "latest.yml") {
               Write-Host "Deleting existing asset: $($asset.name)"
-              Invoke-RestMethod -Uri "https://api.github.com/repos/Anuvrat14/vaultic/releases/assets/$($asset.id)" -Method Delete -Headers $headers
+              Invoke-RestMethod -Uri "https://api.github.com/repos/Anuvrat14/dotward/releases/assets/$($asset.id)" -Method Delete -Headers $headers
             }
           }
 
           # Upload installer (use curl.exe — handles large files reliably)
           Write-Host "Uploading installer..."
-          $result = curl.exe --fail -w "`nHTTP_STATUS:%{http_code}" -X POST "${uploadBase}?name=Vaultic-Setup-1.2.0.exe" `
+          $result = curl.exe --fail -w "`nHTTP_STATUS:%{http_code}" -X POST "${uploadBase}?name=Dotward-Setup-1.2.0.exe" `
             -H "Authorization: Bearer $env:GH_TOKEN" `
             -H "Content-Type: application/octet-stream" `
             --data-binary "@$dest"

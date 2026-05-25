@@ -218,7 +218,7 @@ def import_env(project_id):
 @require_unlock
 def export_env(project_id):
     project = Project.query.get_or_404(project_id)
-    lines   = [f'# {project.name}', f'# Exported by Vaultic', '']
+    lines   = [f'# {project.name}', f'# Exported by Dotward', '']
 
     for var in sorted(project.variables, key=lambda v: v.key):
         try:

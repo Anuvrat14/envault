@@ -1,5 +1,5 @@
 {
-  "name": "vaultic",
+  "name": "dotward",
   "version": "1.2.0",
   "description": "Encrypted environment variable manager for developers",
   "author": "Anuvrat14",
@@ -13,13 +13,13 @@
     "release": "electron-builder --mac --publish always"
   },
   "build": {
-    "appId": "com.vaultic.app",
-    "productName": "Vaultic",
+    "appId": "com.dotward.app",
+    "productName": "Dotward",
     "copyright": "Copyright © 2026",
     "publish": {
       "provider": "github",
       "owner": "Anuvrat14",
-      "repo": "vaultic",
+      "repo": "dotward",
       "private": false
     },
     "files": [
@@ -32,7 +32,7 @@
     "mac": {
       "category": "public.app-category.developer-tools",
       "extraResources": [
-        { "from": "dist/vaultic-server", "to": "vaultic-server" }
+        { "from": "dist/dotward-server", "to": "dotward-server" }
       ],
       "target": [
         {
@@ -48,7 +48,7 @@
     },
     "win": {
       "extraResources": [
-        { "from": "dist/vaultic-server.exe", "to": "vaultic-server.exe" }
+        { "from": "dist/dotward-server.exe", "to": "dotward-server.exe" }
       ],
       "target": [
         {
@@ -59,7 +59,7 @@
       "icon": "static/icon.ico"
     },
     "dmg": {
-      "title": "Vaultic"
+      "title": "Dotward"
     },
     "nsis": {
       "oneClick": false,

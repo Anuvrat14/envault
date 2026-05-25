@@ -1,8 +1,8 @@
 """
-Vaultic CLI REST API — token-authenticated, CSRF-exempt.
+Dotward CLI REST API — token-authenticated, CSRF-exempt.
 
 All endpoints require:
-  • X-Vaultic-Token header matching AppConfig.cli_token
+  • X-Dotward-Token header matching AppConfig.cli_token
   • Vault to be unlocked (enc_key present in cli_state)
 
 Base URL: /api/v1/
@@ -32,20 +32,20 @@ def _auth() -> tuple[bytes | None, tuple[str, int] | None]:
     Validate the token and return (enc_key_bytes, None) on success,
     or (None, (error_message, http_status)) on failure.
     """
-    token = request.headers.get('X-Vaultic-Token', '').strip()
+    token = request.headers.get('X-Dotward-Token', '').strip()
     if not token:
-        return None, ('Missing X-Vaultic-Token header', 401)
+        return None, ('Missing X-Dotward-Token header', 401)
 
     config = AppConfig.query.first()
     if not config or not config.cli_token:
-        return None, ('CLI token not generated. Open Vaultic → Settings → CLI Integration.', 403)
+        return None, ('CLI token not generated. Open Dotward → Settings → CLI Integration.', 403)
 
     if token != config.cli_token:
         return None, ('Invalid token', 401)
 
     enc_key_hex = cli_state.get_key(token)
     if enc_key_hex is None:
-        return None, ('Vault is locked. Open Vaultic and unlock it first.', 503)
+        return None, ('Vault is locked. Open Dotward and unlock it first.', 503)
 
     return bytes.fromhex(enc_key_hex), None
 

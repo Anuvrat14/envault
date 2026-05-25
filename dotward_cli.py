@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 """
-Vaultic CLI — interact with your local Vaultic vault from the terminal.
+Dotward CLI — interact with your local Dotward vault from the terminal.
 
 Requires:
-  • Vaultic app installed and running
+  • Dotward app installed and running
   • Vault unlocked in the GUI
-  • CLI token saved to ~/.vaultic/cli_token (generated in Settings)
+  • CLI token saved to ~/.dotward/cli_token (generated in Settings)
 
 Install:
-  chmod +x vaultic && sudo mv vaultic /usr/local/bin/vaultic
+  chmod +x dotward && sudo mv dotward /usr/local/bin/dotward
 
 Usage:
-  vaultic status
-  vaultic projects
-  vaultic list <project>
-  vaultic get <project> <KEY>
-  vaultic set <project> <KEY> [value]
-  vaultic export <project> [--output .env]
-  vaultic inject <project> -- <command> [args...]
+  dotward status
+  dotward projects
+  dotward list <project>
+  dotward get <project> <KEY>
+  dotward set <project> <KEY> [value]
+  dotward export <project> [--output .env]
+  dotward inject <project> -- <command> [args...]
 """
 from __future__ import annotations
 
@@ -33,23 +33,23 @@ from urllib.parse import quote
 # Configuration
 # --------------------------------------------------------------------------- #
 
-VAULTIC_URL = os.environ.get('VAULTIC_URL', 'http://127.0.0.1:5177')
-TOKEN_PATH  = os.path.join(os.path.expanduser('~'), '.vaultic', 'cli_token')
+DOTWARD_URL = os.environ.get('DOTWARD_URL', 'http://127.0.0.1:5177')
+TOKEN_PATH  = os.path.join(os.path.expanduser('~'), '.dotward', 'cli_token')
 
 
 def _token() -> str:
     """Return CLI token from env var or token file."""
-    t = os.environ.get('VAULTIC_TOKEN', '').strip()
+    t = os.environ.get('DOTWARD_TOKEN', '').strip()
     if t:
         return t
     if not os.path.exists(TOKEN_PATH):
         _die(
             f'No CLI token found.\n\n'
-            f'  1. Open Vaultic and go to Settings → CLI Integration\n'
+            f'  1. Open Dotward and go to Settings → CLI Integration\n'
             f'  2. Click "Generate Token" then "Download Token File"\n'
-            f'  3. Move the file: mv ~/Downloads/vaultic_cli_token ~/.vaultic/cli_token\n'
-            f'  4. Set permissions: chmod 600 ~/.vaultic/cli_token\n\n'
-            f'Or set the VAULTIC_TOKEN environment variable.'
+            f'  3. Move the file: mv ~/Downloads/dotward_cli_token ~/.dotward/cli_token\n'
+            f'  4. Set permissions: chmod 600 ~/.dotward/cli_token\n\n'
+            f'Or set the DOTWARD_TOKEN environment variable.'
         )
     with open(TOKEN_PATH) as f:
         return f.read().strip()
@@ -60,10 +60,10 @@ def _token() -> str:
 # --------------------------------------------------------------------------- #
 
 def _req(method: str, path: str, body: dict | None = None) -> dict | list:
-    url  = f'{VAULTIC_URL}/api/v1{path}'
+    url  = f'{DOTWARD_URL}/api/v1{path}'
     data = json.dumps(body).encode() if body is not None else None
     req  = urllib.request.Request(url, data=data, method=method)
-    req.add_header('X-Vaultic-Token', _token())
+    req.add_header('X-Dotward-Token', _token())
     if data:
         req.add_header('Content-Type', 'application/json')
     try:
@@ -78,17 +78,17 @@ def _req(method: str, path: str, body: dict | None = None) -> dict | list:
         _die(msg)
     except ConnectionRefusedError:
         _die(
-            'Cannot connect to Vaultic.\n\n'
-            '  • Make sure the Vaultic app is running\n'
+            'Cannot connect to Dotward.\n\n'
+            '  • Make sure the Dotward app is running\n'
             '  • Unlock the vault in the GUI\n'
-            f'  • Expected at: {VAULTIC_URL}'
+            f'  • Expected at: {DOTWARD_URL}'
         )
     except Exception as e:
         _die(str(e))
 
 
 def _die(msg: str) -> None:
-    print(f'vaultic: {msg}', file=sys.stderr)
+    print(f'dotward: {msg}', file=sys.stderr)
     sys.exit(1)
 
 
@@ -103,7 +103,7 @@ def _enc(s: str) -> str:
 def cmd_status(_args: list[str]) -> None:
     """Check vault connection and state."""
     r = _req('GET', '/status')
-    print(f'Vaultic {r["version"]} — {r["status"]}')
+    print(f'Dotward {r["version"]} — {r["status"]}')
 
 
 def cmd_projects(_args: list[str]) -> None:
@@ -122,7 +122,7 @@ def cmd_projects(_args: list[str]) -> None:
 def cmd_list(args: list[str]) -> None:
     """List variable keys in a project."""
     if not args:
-        _die('Usage: vaultic list <project>')
+        _die('Usage: dotward list <project>')
     variables = _req('GET', f'/projects/{_enc(args[0])}/vars')
     if not variables:
         print('No variables found.')
@@ -136,7 +136,7 @@ def cmd_list(args: list[str]) -> None:
 def cmd_get(args: list[str]) -> None:
     """Print a single decrypted value."""
     if len(args) < 2:
-        _die('Usage: vaultic get <project> <KEY>')
+        _die('Usage: dotward get <project> <KEY>')
     result = _req('GET', f'/projects/{_enc(args[0])}/get/{_enc(args[1])}')
     print(result['value'])
 
@@ -144,7 +144,7 @@ def cmd_get(args: list[str]) -> None:
 def cmd_set(args: list[str]) -> None:
     """Set a variable value (reads from stdin if value omitted)."""
     if len(args) < 2:
-        _die('Usage: vaultic set <project> <KEY> [value]\n       (omit value to read from stdin/pipe)')
+        _die('Usage: dotward set <project> <KEY> [value]\n       (omit value to read from stdin/pipe)')
     project, key = args[0], args[1]
     if len(args) >= 3:
         value = args[2]
@@ -165,7 +165,7 @@ def cmd_set(args: list[str]) -> None:
 def cmd_export(args: list[str]) -> None:
     """Export all variables as KEY=VALUE lines."""
     if not args:
-        _die('Usage: vaultic export <project>\n       vaultic export <project> --output .env')
+        _die('Usage: dotward export <project>\n       dotward export <project> --output .env')
 
     project = args[0]
     output  = None
@@ -187,14 +187,14 @@ def cmd_export(args: list[str]) -> None:
 def cmd_inject(args: list[str]) -> None:
     """Run a command with vault variables injected as environment variables."""
     if '--' not in args or not args:
-        _die('Usage: vaultic inject <project> -- <command> [args...]')
+        _die('Usage: dotward inject <project> -- <command> [args...]')
 
     sep     = args.index('--')
     project = args[0] if args else None
     cmd     = args[sep + 1:]
 
     if not project:
-        _die('Usage: vaultic inject <project> -- <command> [args...]')
+        _die('Usage: dotward inject <project> -- <command> [args...]')
     if not cmd:
         _die('No command specified after --')
 
@@ -219,32 +219,32 @@ COMMANDS: dict[str, tuple] = {
 }
 
 USAGE = """\
-\033[1mVaultic CLI\033[0m — interact with your local encrypted vault
+\033[1mDotward CLI\033[0m — interact with your local encrypted vault
 
 \033[1mUsage:\033[0m
-  vaultic status
-  vaultic projects
-  vaultic list     <project>
-  vaultic get      <project> <KEY>
-  vaultic set      <project> <KEY> [value]
-  vaultic export   <project> [--output .env]
-  vaultic inject   <project> -- <command> [args...]
+  dotward status
+  dotward projects
+  dotward list     <project>
+  dotward get      <project> <KEY>
+  dotward set      <project> <KEY> [value]
+  dotward export   <project> [--output .env]
+  dotward inject   <project> -- <command> [args...]
 
 \033[1mExamples:\033[0m
-  vaultic get "My App" DATABASE_URL
-  vaultic set "My App" API_KEY sk-abc123
-  cat secret.txt | vaultic set "My App" PRIVATE_KEY
-  vaultic inject "My App" -- npm run dev
-  vaultic export "My App" --output .env
+  dotward get "My App" DATABASE_URL
+  dotward set "My App" API_KEY sk-abc123
+  cat secret.txt | dotward set "My App" PRIVATE_KEY
+  dotward inject "My App" -- npm run dev
+  dotward export "My App" --output .env
 
 \033[1mEnvironment variables:\033[0m
-  VAULTIC_TOKEN    Override the CLI token
-  VAULTIC_URL      Override server URL (default: http://127.0.0.1:5177)
+  DOTWARD_TOKEN    Override the CLI token
+  DOTWARD_URL      Override server URL (default: http://127.0.0.1:5177)
 
 \033[1mToken setup:\033[0m
-  Vaultic → Settings → CLI Integration → Generate Token → Download
-  mv ~/Downloads/vaultic_cli_token ~/.vaultic/cli_token
-  chmod 600 ~/.vaultic/cli_token"""
+  Dotward → Settings → CLI Integration → Generate Token → Download
+  mv ~/Downloads/dotward_cli_token ~/.dotward/cli_token
+  chmod 600 ~/.dotward/cli_token"""
 
 
 def main() -> None:
@@ -255,8 +255,8 @@ def main() -> None:
 
     cmd = args[0]
     if cmd not in COMMANDS:
-        print(f'vaultic: unknown command "{cmd}"', file=sys.stderr)
-        print('Run "vaultic --help" for usage.', file=sys.stderr)
+        print(f'dotward: unknown command "{cmd}"', file=sys.stderr)
+        print('Run "dotward --help" for usage.', file=sys.stderr)
         sys.exit(1)
 
     COMMANDS[cmd][0](args[1:])
