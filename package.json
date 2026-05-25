@@ -1,5 +1,5 @@
 {
-  "name": "envault",
+  "name": "vaultic",
   "version": "1.2.0",
   "description": "Encrypted environment variable manager for developers",
   "author": "Anuvrat14",
@@ -13,13 +13,13 @@
     "release": "electron-builder --mac --publish always"
   },
   "build": {
-    "appId": "com.envault.app",
-    "productName": "Envault",
+    "appId": "com.vaultic.app",
+    "productName": "Vaultic",
     "copyright": "Copyright © 2026",
     "publish": {
       "provider": "github",
       "owner": "Anuvrat14",
-      "repo": "envault",
+      "repo": "vaultic",
       "private": false
     },
     "files": [
@@ -32,7 +32,7 @@
     "mac": {
       "category": "public.app-category.developer-tools",
       "extraResources": [
-        { "from": "dist/envault-server", "to": "envault-server" }
+        { "from": "dist/vaultic-server", "to": "vaultic-server" }
       ],
       "target": [
         {
@@ -48,7 +48,7 @@
     },
     "win": {
       "extraResources": [
-        { "from": "dist/envault-server.exe", "to": "envault-server.exe" }
+        { "from": "dist/vaultic-server.exe", "to": "vaultic-server.exe" }
       ],
       "target": [
         {
@@ -59,7 +59,7 @@
       "icon": "static/icon.ico"
     },
     "dmg": {
-      "title": "Envault"
+      "title": "Vaultic"
     },
     "nsis": {
       "oneClick": false,

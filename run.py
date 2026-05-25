@@ -1,5 +1,5 @@
 """
-Entry point for Envault Flask server.
+Entry point for Vaultic Flask server.
 When packaged by PyInstaller, sys._MEIPASS is the temp extraction dir.
 We add it to the path so Flask can find templates/static.
 """
@@ -21,7 +21,7 @@ from app import create_app
 app = create_app()
 
 if __name__ == '__main__':
-    port = int(os.environ.get('ENVAULT_PORT', 7331))
+    port = int(os.environ.get('VAULTIC_PORT', 7331))
 
     if getattr(sys, 'frozen', False):
         # Production: use waitress

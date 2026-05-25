@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-# Envault macOS ARM64 PyInstaller Spec
+# Vaultic macOS ARM64 PyInstaller Spec
 
 import os
 REPO_ROOT = os.path.abspath(SPECPATH)
@@ -105,7 +105,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='envault-server',
+    name='vaultic-server',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

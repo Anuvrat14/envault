@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{% block title %}Envault{% endblock %}</title>
+    <title>{% block title %}Vaultic{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
@@ -16,7 +16,7 @@
 <nav class="navbar">
     <div class="container-fluid px-4">
         <a class="navbar-brand" href="{{ url_for('projects.dashboard') }}">
-            <i class="fas fa-shield-halved me-2"></i>Envault
+            <i class="fas fa-shield-halved me-2"></i>Vaultic
         </a>
         <div class="d-flex align-items-center gap-3">
             <a href="{{ url_for('projects.dashboard') }}" class="nav-link {% if request.endpoint == 'projects.dashboard' %}active{% endif %}">
@@ -73,7 +73,7 @@
 <footer style="text-align:center; padding:.9rem 1rem;
                font-size:.72rem; color:rgba(255,255,255,.18);
                letter-spacing:.04em; user-select:none;">
-    Envault v{{ app_version }}
+    Vaultic v{{ app_version }}
 </footer>
 
 </body>

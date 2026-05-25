@@ -19,7 +19,7 @@ autoUpdater.autoInstallOnAppQuit = true; // install on next quit
 function startFlask() {
     const isPackaged = app.isPackaged;
     const isWin      = process.platform === 'win32';
-    const serverBin  = isWin ? 'envault-server.exe' : 'envault-server';
+    const serverBin  = isWin ? 'vaultic-server.exe' : 'vaultic-server';
     const pythonExe  = isPackaged
         ? path.join(process.resourcesPath, serverBin)
         : (isWin
@@ -107,7 +107,7 @@ autoUpdater.on('update-available', info => {
     // Silent notification — download starts automatically
     if (Notification.isSupported()) {
         new Notification({
-            title: 'Envault Update',
+            title: 'Vaultic Update',
             body: `v${info.version} is downloading in the background.`,
             silent: true,
         }).show();
@@ -131,7 +131,7 @@ autoUpdater.on('update-downloaded', info => {
     const response = dialog.showMessageBoxSync(mainWindow, {
         type: 'info',
         title: 'Update Ready',
-        message: `Envault ${info.version} is ready to install.`,
+        message: `Vaultic ${info.version} is ready to install.`,
         detail: 'The update will be applied when you restart the app.',
         buttons: ['Restart Now', 'Later'],
         defaultId: 0,
@@ -185,7 +185,7 @@ function startNotificationPolling() {
                         if (Notification.isSupported()) {
                             const icon = n.type === 'expired' || n.type === 'risk' ? '🔴' : '🟡';
                             new Notification({
-                                title: `Envault ${icon}`,
+                                title: `Vaultic ${icon}`,
                                 body:  n.message,
                                 silent: false,
                             }).show();

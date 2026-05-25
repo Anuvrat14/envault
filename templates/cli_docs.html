@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}CLI Integration — Envault{% endblock %}
+{% block title %}CLI Integration — Vaultic{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -175,9 +175,9 @@
                 <i class="fas fa-terminal"></i>
             </div>
             <div>
-                <h5 style="font-weight:600; margin-bottom:.5rem;">The <code style="color:rgba(255,255,255,.8);">envault</code> CLI tool</h5>
+                <h5 style="font-weight:600; margin-bottom:.5rem;">The <code style="color:rgba(255,255,255,.8);">vaultic</code> CLI tool</h5>
                 <p style="font-size:.85rem; color:rgba(255,255,255,.5); margin:0; line-height:1.65;">
-                    A lightweight Python script that talks to your running Envault vault over
+                    A lightweight Python script that talks to your running Vaultic vault over
                     <code class="inline-code">localhost</code>. Fetch individual secrets, inject an
                     entire project's variables into any process, or write new values — all without
                     ever touching a plaintext <code class="inline-code">.env</code> file on disk.
@@ -213,7 +213,7 @@
                 <div class="cmd-block">
                     <div class="cmd-example">
                         <span class="cmt"># Using curl</span><br>
-                        <span class="kw">curl</span> -o envault {{ request.url_root }}cli/download
+                        <span class="kw">curl</span> -o vaultic {{ request.url_root }}cli/download
                     </div>
                 </div>
             </div>
@@ -225,11 +225,11 @@
                 <h6>Make it executable and install globally</h6>
                 <div class="cmd-block">
                     <div class="cmd-example">
-                        <span class="kw">chmod</span> +x envault<br>
-                        <span class="kw">sudo mv</span> envault /usr/local/bin/envault
+                        <span class="kw">chmod</span> +x vaultic<br>
+                        <span class="kw">sudo mv</span> vaultic /usr/local/bin/vaultic
                     </div>
                 </div>
-                <p style="margin-top:.5rem;">Or keep it local: <code class="inline-code">./envault</code></p>
+                <p style="margin-top:.5rem;">Or keep it local: <code class="inline-code">./vaultic</code></p>
             </div>
         </div>
 
@@ -240,10 +240,10 @@
                 <p>Go to Settings → CLI Integration, click <strong>Generate Token</strong>, then <strong>Download Token File</strong>.</p>
                 <div class="cmd-block">
                     <div class="cmd-example">
-                        <span class="cmt"># Create the .envault directory and move the token file</span><br>
-                        <span class="kw">mkdir -p</span> ~/.envault<br>
-                        <span class="kw">mv</span> ~/Downloads/envault_cli_token ~/.envault/cli_token<br>
-                        <span class="kw">chmod</span> 600 ~/.envault/cli_token
+                        <span class="cmt"># Create the .vaultic directory and move the token file</span><br>
+                        <span class="kw">mkdir -p</span> ~/.vaultic<br>
+                        <span class="kw">mv</span> ~/Downloads/vaultic_cli_token ~/.vaultic/cli_token<br>
+                        <span class="kw">chmod</span> 600 ~/.vaultic/cli_token
                     </div>
                 </div>
             </div>
@@ -253,11 +253,11 @@
             <div class="step-num">4</div>
             <div class="step-body">
                 <h6>Verify the connection</h6>
-                <p>Make sure Envault is running and the vault is unlocked, then:</p>
+                <p>Make sure Vaultic is running and the vault is unlocked, then:</p>
                 <div class="cmd-block">
                     <div class="cmd-example">
-                        <span class="prompt">$ </span><span class="kw">envault</span> status<br>
-                        <span class="val">Envault 1.1.0 — unlocked</span>
+                        <span class="prompt">$ </span><span class="kw">vaultic</span> status<br>
+                        <span class="val">Vaultic 1.1.0 — unlocked</span>
                     </div>
                 </div>
             </div>
@@ -272,20 +272,20 @@
 
         <!-- status -->
         <div class="cmd-block">
-            <div class="cmd-signature">envault <strong>status</strong></div>
+            <div class="cmd-signature">vaultic <strong>status</strong></div>
             <div class="cmd-desc">Check whether the vault is reachable and unlocked.</div>
             <div class="cmd-example">
-                <span class="prompt">$ </span><span class="kw">envault</span> status<br>
-                <span class="val">Envault 1.1.0 — unlocked</span>
+                <span class="prompt">$ </span><span class="kw">vaultic</span> status<br>
+                <span class="val">Vaultic 1.1.0 — unlocked</span>
             </div>
         </div>
 
         <!-- projects -->
         <div class="cmd-block">
-            <div class="cmd-signature">envault <strong>projects</strong></div>
+            <div class="cmd-signature">vaultic <strong>projects</strong></div>
             <div class="cmd-desc">List all projects in the vault with variable counts.</div>
             <div class="cmd-example">
-                <span class="prompt">$ </span><span class="kw">envault</span> projects<br>
+                <span class="prompt">$ </span><span class="kw">vaultic</span> projects<br>
                 <span class="val">  My App Production     12 vars  Production environment<br>
   My App Staging         9 vars<br>
   Internal Tools         4 vars</span>
@@ -294,10 +294,10 @@
 
         <!-- list -->
         <div class="cmd-block">
-            <div class="cmd-signature">envault <strong>list</strong> &lt;project&gt;</div>
+            <div class="cmd-signature">vaultic <strong>list</strong> &lt;project&gt;</div>
             <div class="cmd-desc">List all variable keys in a project. Flagged variables show a risk level tag.</div>
             <div class="cmd-example">
-                <span class="prompt">$ </span><span class="kw">envault</span> list "My App Production"<br>
+                <span class="prompt">$ </span><span class="kw">vaultic</span> list "My App Production"<br>
                 <span class="val">  API_KEY<br>
   DATABASE_URL<br>
   JWT_SECRET<br>
@@ -308,60 +308,60 @@
 
         <!-- get -->
         <div class="cmd-block">
-            <div class="cmd-signature">envault <strong>get</strong> &lt;project&gt; &lt;KEY&gt;</div>
+            <div class="cmd-signature">vaultic <strong>get</strong> &lt;project&gt; &lt;KEY&gt;</div>
             <div class="cmd-desc">Decrypt and print a single variable value. Pipe-friendly — outputs just the value.</div>
             <div class="cmd-example">
-                <span class="prompt">$ </span><span class="kw">envault</span> get "My App" DATABASE_URL<br>
+                <span class="prompt">$ </span><span class="kw">vaultic</span> get "My App" DATABASE_URL<br>
                 <span class="val">postgres://user:pass@localhost:5432/myapp</span><br>
                 <br>
                 <span class="cmt"># Capture in a shell variable</span><br>
-                <span class="kw">DB</span>=$(<span class="kw">envault</span> get "My App" DATABASE_URL)
+                <span class="kw">DB</span>=$(<span class="kw">vaultic</span> get "My App" DATABASE_URL)
             </div>
         </div>
 
         <!-- set -->
         <div class="cmd-block">
-            <div class="cmd-signature">envault <strong>set</strong> &lt;project&gt; &lt;KEY&gt; [value]</div>
+            <div class="cmd-signature">vaultic <strong>set</strong> &lt;project&gt; &lt;KEY&gt; [value]</div>
             <div class="cmd-desc">
                 Set or update a variable. Omit the value to be prompted securely (hidden input),
                 or pipe a value from stdin.
             </div>
             <div class="cmd-example">
                 <span class="cmt"># Inline value</span><br>
-                <span class="prompt">$ </span><span class="kw">envault</span> set "My App" API_KEY sk-abc123<br>
+                <span class="prompt">$ </span><span class="kw">vaultic</span> set "My App" API_KEY sk-abc123<br>
                 <span class="val">Set API_KEY</span><br>
                 <br>
                 <span class="cmt"># Read from stdin (pipe)</span><br>
-                <span class="prompt">$ </span><span class="kw">cat</span> private.key | <span class="kw">envault</span> set "My App" PRIVATE_KEY<br>
+                <span class="prompt">$ </span><span class="kw">cat</span> private.key | <span class="kw">vaultic</span> set "My App" PRIVATE_KEY<br>
                 <br>
                 <span class="cmt"># Prompted (hidden) — good for CI setup</span><br>
-                <span class="prompt">$ </span><span class="kw">envault</span> set "My App" DB_PASSWORD<br>
+                <span class="prompt">$ </span><span class="kw">vaultic</span> set "My App" DB_PASSWORD<br>
                 <span class="val">Value for DB_PASSWORD: ****</span>
             </div>
         </div>
 
         <!-- export -->
         <div class="cmd-block">
-            <div class="cmd-signature">envault <strong>export</strong> &lt;project&gt; [--output &lt;file&gt;]</div>
+            <div class="cmd-signature">vaultic <strong>export</strong> &lt;project&gt; [--output &lt;file&gt;]</div>
             <div class="cmd-desc">
                 Print all variables as <code class="inline-code">KEY=VALUE</code> lines.
                 Without <code class="inline-code">--output</code>, writes to stdout — useful for piping.
             </div>
             <div class="cmd-example">
                 <span class="cmt"># Print to terminal</span><br>
-                <span class="prompt">$ </span><span class="kw">envault</span> export "My App"<br>
+                <span class="prompt">$ </span><span class="kw">vaultic</span> export "My App"<br>
                 <span class="val">API_KEY=sk-abc123<br>
 DATABASE_URL=postgres://...</span><br>
                 <br>
                 <span class="cmt"># Write to a file</span><br>
-                <span class="prompt">$ </span><span class="kw">envault</span> export "My App" --output .env<br>
+                <span class="prompt">$ </span><span class="kw">vaultic</span> export "My App" --output .env<br>
                 <span class="val">Exported 12 variables → .env</span>
             </div>
         </div>
 
         <!-- inject -->
         <div class="cmd-block">
-            <div class="cmd-signature">envault <strong>inject</strong> &lt;project&gt; -- &lt;command&gt; [args...]</div>
+            <div class="cmd-signature">vaultic <strong>inject</strong> &lt;project&gt; -- &lt;command&gt; [args...]</div>
             <div class="cmd-desc">
                 Run any command with the project's variables automatically injected as environment variables.
                 This is the recommended pattern — your code reads from <code class="inline-code">process.env</code> as normal,
@@ -369,13 +369,13 @@ DATABASE_URL=postgres://...</span><br>
             </div>
             <div class="cmd-example">
                 <span class="cmt"># Start a dev server with vault vars</span><br>
-                <span class="prompt">$ </span><span class="kw">envault</span> inject "My App" -- npm run dev<br>
+                <span class="prompt">$ </span><span class="kw">vaultic</span> inject "My App" -- npm run dev<br>
                 <br>
                 <span class="cmt"># Run a Python script</span><br>
-                <span class="prompt">$ </span><span class="kw">envault</span> inject "My App" -- python manage.py migrate<br>
+                <span class="prompt">$ </span><span class="kw">vaultic</span> inject "My App" -- python manage.py migrate<br>
                 <br>
                 <span class="cmt"># Run a Docker build with secrets</span><br>
-                <span class="prompt">$ </span><span class="kw">envault</span> inject "My App" -- docker compose up
+                <span class="prompt">$ </span><span class="kw">vaultic</span> inject "My App" -- docker compose up
             </div>
         </div>
     </div>
@@ -391,7 +391,7 @@ DATABASE_URL=postgres://...</span><br>
         </h6>
         <p style="font-size:.8rem; color:rgba(255,255,255,.45); margin-bottom:.9rem; line-height:1.6;">
             Instead of committing a <code class="inline-code">.env</code> file or running <code class="inline-code">source .env</code>,
-            prefix any command with <code class="inline-code">envault inject</code>.
+            prefix any command with <code class="inline-code">vaultic inject</code>.
         </p>
 
         <div class="cmd-block mb-3">
@@ -399,9 +399,9 @@ DATABASE_URL=postgres://...</span><br>
             <div class="cmd-example">
 <span style="color:rgba(255,255,255,.3);">{
   "scripts": {</span>
-    "<span class="kw">dev</span>": "<span class="val">envault inject \"My App\" -- next dev</span>",
-    "<span class="kw">build</span>": "<span class="val">envault inject \"My App\" -- next build</span>",
-    "<span class="kw">test</span>": "<span class="val">envault inject \"My App\" -- jest</span>"
+    "<span class="kw">dev</span>": "<span class="val">vaultic inject \"My App\" -- next dev</span>",
+    "<span class="kw">build</span>": "<span class="val">vaultic inject \"My App\" -- next build</span>",
+    "<span class="kw">test</span>": "<span class="val">vaultic inject \"My App\" -- jest</span>"
 <span style="color:rgba(255,255,255,.3);">  }
 }</span>
             </div>
@@ -411,9 +411,9 @@ DATABASE_URL=postgres://...</span><br>
             <div style="font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; color:rgba(255,255,255,.3); margin-bottom:.5rem;">Makefile</div>
             <div class="cmd-example">
 <span class="kw">run</span>:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="val">envault inject "My App" -- go run ./cmd/server<br><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="val">vaultic inject "My App" -- go run ./cmd/server<br><br>
 </span><span class="kw">migrate</span>:<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="val">envault inject "My App" -- go run ./cmd/migrate</span>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="val">vaultic inject "My App" -- go run ./cmd/migrate</span>
             </div>
         </div>
 
@@ -421,7 +421,7 @@ DATABASE_URL=postgres://...</span><br>
             <div style="font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; color:rgba(255,255,255,.3); margin-bottom:.5rem;">Shell alias (add to ~/.zshrc or ~/.bashrc)</div>
             <div class="cmd-example">
                 <span class="cmt"># Short alias for your main project</span><br>
-                <span class="kw">alias</span> <span class="val">dev</span>='envault inject "My App" --'<br>
+                <span class="kw">alias</span> <span class="val">dev</span>='vaultic inject "My App" --'<br>
                 <br>
                 <span class="cmt"># Then just:</span><br>
                 <span class="prompt">$ </span><span class="val">dev</span> npm start<br>
@@ -446,12 +446,12 @@ DATABASE_URL=postgres://...</span><br>
             </thead>
             <tbody>
                 <tr>
-                    <td>ENVAULT_TOKEN</td>
-                    <td style="font-family:monospace; color:rgba(255,255,255,.4);">~/.envault/cli_token</td>
+                    <td>VAULTIC_TOKEN</td>
+                    <td style="font-family:monospace; color:rgba(255,255,255,.4);">~/.vaultic/cli_token</td>
                     <td>Override the CLI token. Useful in CI or Docker.</td>
                 </tr>
                 <tr>
-                    <td>ENVAULT_URL</td>
+                    <td>VAULTIC_URL</td>
                     <td style="font-family:monospace; color:rgba(255,255,255,.4);">http://127.0.0.1:5177</td>
                     <td>Override the server URL if you've changed the port.</td>
                 </tr>
@@ -486,18 +486,18 @@ DATABASE_URL=postgres://...</span><br>
                 Do this if the token file is ever accidentally exposed.
             </div>
             <div><i class="fas fa-check me-2" style="color:#1e7e4e;"></i>
-                <code class="inline-code">envault inject</code> injects variables into a subprocess environment only — they are never written to disk or logged.
+                <code class="inline-code">vaultic inject</code> injects variables into a subprocess environment only — they are never written to disk or logged.
             </div>
             <div><i class="fas fa-check me-2" style="color:#1e7e4e;"></i>
                 Do not commit your token to <code class="inline-code">.env</code>, <code class="inline-code">dotfiles</code>, or any repository.
-                Add <code class="inline-code">~/.envault/</code> to your global <code class="inline-code">.gitignore</code>.
+                Add <code class="inline-code">~/.vaultic/</code> to your global <code class="inline-code">.gitignore</code>.
             </div>
         </div>
 
         <div class="cmd-block mt-3">
             <div style="font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; color:rgba(255,255,255,.3); margin-bottom:.5rem;">~/.gitignore_global</div>
             <div class="cmd-example">
-                <span class="val">.envault/</span>
+                <span class="val">.vaultic/</span>
             </div>
         </div>
     </div>
@@ -517,8 +517,8 @@ DATABASE_URL=postgres://...</span><br>
             </thead>
             <tbody>
                 <tr>
-                    <td>Cannot connect to Envault</td>
-                    <td>The app isn't running. Open Envault and unlock the vault first.</td>
+                    <td>Cannot connect to Vaultic</td>
+                    <td>The app isn't running. Open Vaultic and unlock the vault first.</td>
                 </tr>
                 <tr>
                     <td>Vault is locked</td>
@@ -534,11 +534,11 @@ DATABASE_URL=postgres://...</span><br>
                 </tr>
                 <tr>
                     <td>No CLI token found</td>
-                    <td>Token file missing. Download it from Settings and save to <code class="inline-code">~/.envault/cli_token</code>.</td>
+                    <td>Token file missing. Download it from Settings and save to <code class="inline-code">~/.vaultic/cli_token</code>.</td>
                 </tr>
                 <tr>
                     <td>Project not found</td>
-                    <td>Project name is case-insensitive but must match exactly. Run <code class="inline-code">envault projects</code> to see exact names.</td>
+                    <td>Project name is case-insensitive but must match exactly. Run <code class="inline-code">vaultic projects</code> to see exact names.</td>
                 </tr>
             </tbody>
         </table>
