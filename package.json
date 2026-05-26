@@ -1,6 +1,6 @@
 {
   "name": "dotward",
-  "version": "1.4.6",
+  "version": "1.4.7",
   "description": "Encrypted environment variable manager for developers",
   "author": "Anuvrat14",
   "main": "main.js",
@@ -24,6 +24,7 @@
     },
     "files": [
       "main.js",
+      "preload.js",
       "static/**/*",
       "templates/**/*",
       "package.json"
