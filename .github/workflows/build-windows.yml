@@ -74,6 +74,13 @@ jobs:
           Copy-Item $src $dest
           Write-Host "Installer: $dest"
 
+          # Create release if it doesn't exist
+          $releaseCheck = gh api repos/Anuvrat14/dotward/releases/tags/$tag 2>$null | ConvertFrom-Json
+          if (-not $releaseCheck.id) {
+            gh release create $tag --title "Dotward $tag" --notes "Dotward $tag"
+            Write-Host "Created release $tag"
+          }
+
           # Delete existing assets via API to avoid 403 on clobber
           $releaseId = (gh api repos/Anuvrat14/dotward/releases/tags/$tag | ConvertFrom-Json).id
           $assets = gh api repos/Anuvrat14/dotward/releases/$releaseId/assets | ConvertFrom-Json
