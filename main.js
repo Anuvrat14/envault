@@ -154,8 +154,13 @@ function createWindow() {
             trafficLightPosition: { x: 16, y: 16 },
             frame: false,
         } : {
-            frame: true,
-            titleBarStyle: 'default',
+            frame: false,
+            titleBarStyle: 'hidden',
+            titleBarOverlay: {
+                color: '#0d0d0d',
+                symbolColor: '#94a3b8',
+                height: 56,
+            },
         }),
         webPreferences: {
             nodeIntegration: false,
@@ -171,7 +176,27 @@ function createWindow() {
         return { action: 'deny' };
     });
 
+    // On Windows: make the navbar draggable so the frameless window can be moved
+    if (!isMac) {
+        mainWindow.webContents.on('did-finish-load', () => {
+            mainWindow.webContents.insertCSS(`
+                .navbar { -webkit-app-region: drag; }
+                .navbar a, .navbar button, .navbar input,
+                .navbar select, .navbar label { -webkit-app-region: no-drag; }
+            `).catch(() => {});
+        });
+    }
+
     mainWindow.on('closed', () => { mainWindow = null; });
+
+    // Windows: double-click navbar to maximise/restore (standard UX expectation)
+    if (!isMac) {
+        ipcMain.on('win-maximise-toggle', () => {
+            if (mainWindow) {
+                mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
+            }
+        });
+    }
 
     // Check for updates 5 seconds after window opens (only in packaged builds)
     if (app.isPackaged) {
@@ -235,6 +260,11 @@ autoUpdater.on('update-downloaded', info => {
 
 autoUpdater.on('error', err => {
     log.error('Auto-updater error:', err.message);
+});
+
+// Prevent unhandled promise rejections from crashing / spamming the console
+process.on('unhandledRejection', (reason) => {
+    log.warn('Unhandled rejection (suppressed):', reason);
 });
 
 // ── App lifecycle ──────────────────────────────────────────────────────────
