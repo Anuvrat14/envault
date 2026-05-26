@@ -242,13 +242,19 @@ autoUpdater.on('update-downloaded', info => {
     });
 
     if (response === 0) {
-        // Kill Flask so its files aren't locked when the installer runs
         if (flaskProcess) {
             flaskProcess.kill();
             flaskProcess = null;
         }
-        // Let NSIS handle silent install + relaunch via its defaults
-        setTimeout(() => autoUpdater.quitAndInstall(false, true), 1500);
+        if (process.platform === 'win32') {
+            // Force-kill both processes on Windows to release all file handles
+            const { exec } = require('child_process');
+            exec('taskkill /F /IM dotward-server.exe /T', () => {
+                setTimeout(() => autoUpdater.quitAndInstall(false, true), 1000);
+            });
+        } else {
+            setTimeout(() => autoUpdater.quitAndInstall(false, true), 1500);
+        }
     }
 });
 
