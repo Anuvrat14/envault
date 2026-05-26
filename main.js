@@ -242,9 +242,13 @@ autoUpdater.on('update-downloaded', info => {
     });
 
     if (response === 0) {
-        // isSilent=true, isForceRunAfter=true
-        // On Windows NSIS this triggers the installer silently then relaunches
-        autoUpdater.quitAndInstall(true, true);
+        // Kill Flask first so its files aren't locked when the installer runs
+        if (flaskProcess) {
+            flaskProcess.kill();
+            flaskProcess = null;
+        }
+        // Give the process a moment to fully release file handles before installing
+        setTimeout(() => autoUpdater.quitAndInstall(true, true), 1500);
     }
 });
 
