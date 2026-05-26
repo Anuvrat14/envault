@@ -24,8 +24,18 @@ def scan_page():
     if not session.get('enc_key'):
         from flask import redirect, url_for
         return redirect(url_for('auth.unlock'))
-    home = os.path.expanduser('~')
-    return render_template('scan.html', default_path=home)
+    return render_template('scan.html')
+
+
+@scan_bp.route('/scan/count', methods=['POST'])
+@_require_auth
+def count_files():
+    data = request.get_json(silent=True) or {}
+    path = (data.get('path') or '').strip()
+    if not path or not os.path.exists(path):
+        return jsonify({'ok': False, 'count': 0})
+    count = scan_engine.count_files(path)
+    return jsonify({'ok': True, 'count': count, 'capped': count > scan_engine.MAX_FILES})
 
 
 @scan_bp.route('/scan/run', methods=['POST'])

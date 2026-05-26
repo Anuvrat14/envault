@@ -47,13 +47,35 @@ _ASSIGN_RE: list[re.Pattern] = [
 
 # ── Skip lists ─────────────────────────────────────────────────────────────
 
-SKIP_DIRS  = {'.git', 'node_modules', 'venv', '.venv', '__pycache__',
-              'dist', 'build', '.next', 'vendor', '.tox', '.mypy_cache'}
-SKIP_EXTS  = {'.png', '.jpg', '.jpeg', '.gif', '.ico', '.svg', '.woff',
-              '.woff2', '.ttf', '.eot', '.mp4', '.mp3', '.zip', '.tar',
-              '.gz', '.lock', '.pyc', '.exe', '.dmg', '.db', '.sqlite'}
+SKIP_DIRS  = {
+    # deps / build artifacts
+    '.git', 'node_modules', 'venv', '.venv', '__pycache__',
+    'dist', 'build', '.next', 'vendor', '.tox', '.mypy_cache',
+    '.cache', '.parcel-cache', '.turbo', 'coverage', '.nyc_output',
+    # macOS app bundles & frameworks
+    'Frameworks', 'Resources', 'MacOS', 'PlugIns', 'SharedSupport',
+    # electron / packaging
+    'app-asar', 'swiftshader', 'locales',
+}
+SKIP_EXTS  = {
+    # images / fonts / media
+    '.png', '.jpg', '.jpeg', '.gif', '.ico', '.svg', '.woff',
+    '.woff2', '.ttf', '.eot', '.otf', '.mp4', '.mp3', '.webp',
+    # archives & binaries
+    '.zip', '.tar', '.gz', '.br', '.bz2',
+    '.lock', '.pyc', '.exe', '.dmg', '.pkg',
+    '.dll', '.so', '.dylib', '.node',
+    # data
+    '.db', '.sqlite', '.sqlite3',
+    # compiled / map files
+    '.map', '.min.js', '.min.css',
+    # asar (electron packed archive)
+    '.asar',
+}
 SKIP_FILES = {'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml',
-              'Pipfile.lock', 'poetry.lock'}
+              'Pipfile.lock', 'poetry.lock', 'composer.lock'}
+
+MAX_DEPTH  = 10   # don't recurse deeper than this
 
 _ENV_FILE_RE = re.compile(r'^\.env(\..+)?$')
 
@@ -154,17 +176,52 @@ def scan_file(filepath: str) -> list[dict]:
 
 # ── Directory walker ───────────────────────────────────────────────────────
 
-def collect_files(root: str) -> list[str]:
+MAX_FILES = 3000
+
+
+def collect_files(root: str, max_files: int = MAX_FILES) -> tuple[list[str], bool]:
+    """
+    Walk directory and return (files, truncated).
+    truncated=True means there were more files than max_files.
+    Respects MAX_DEPTH and SKIP_DIRS to avoid crawling into binaries/bundles.
+    """
+    root = os.path.abspath(root)
+    root_depth = root.rstrip(os.sep).count(os.sep)
     files = []
+
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+        # Depth check — prune dirs that are too deep
+        current_depth = dirpath.rstrip(os.sep).count(os.sep) - root_depth
+        if current_depth >= MAX_DEPTH:
+            dirnames.clear()
+            continue
+
+        # Skip unwanted dirs in-place (modifying dirnames prunes the walk)
+        dirnames[:] = [
+            d for d in dirnames
+            if d not in SKIP_DIRS and not d.endswith('.app')
+        ]
+
         for fname in filenames:
             if fname in SKIP_FILES:
                 continue
-            if Path(fname).suffix.lower() in SKIP_EXTS:
+            ext = Path(fname).suffix.lower()
+            if ext in SKIP_EXTS:
+                continue
+            # Skip minified files by name pattern
+            if fname.endswith('.min.js') or fname.endswith('.min.css'):
                 continue
             files.append(os.path.join(dirpath, fname))
-    return files
+            if len(files) >= max_files:
+                return files, True
+
+    return files, False
+
+
+def count_files(root: str) -> int:
+    """Quick file count (stops at MAX_FILES + 1 so we can show 3000+)."""
+    files, truncated = collect_files(root, MAX_FILES + 1)
+    return len(files)
 
 
 def collect_staged_files(repo_path: str = '.') -> list[str] | None:
@@ -191,6 +248,7 @@ def scan(path: str, mode: str = 'all') -> dict:
     mode: 'all'    — scan all files under path
           'staged' — scan only git-staged files
     """
+    truncated = False
     if mode == 'staged':
         files = collect_staged_files(path)
         if files is None:
@@ -202,7 +260,7 @@ def scan(path: str, mode: str = 'all') -> dict:
         if p.is_file():
             files = [str(p)]
         elif p.is_dir():
-            files = collect_files(str(p))
+            files, truncated = collect_files(str(p))
         else:
             return {'ok': False, 'error': f'Path not found: {path}'}
 
@@ -221,6 +279,7 @@ def scan(path: str, mode: str = 'all') -> dict:
         'ok': True,
         'findings': all_findings,
         'scanned': len(files),
+        'truncated': truncated,
         'mode': mode,
         'path': path,
     }

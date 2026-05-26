@@ -204,7 +204,7 @@
                     </label>
                     <div class="path-input-wrap">
                         <input type="text" id="scan-path" class="form-control vault-input"
-                               value="{{ default_path }}"
+                               value=""
                                placeholder="/path/to/your/project">
                         <button class="paste-btn" onclick="pasteClipboard('scan-path')" title="Paste">
                             <i class="fas fa-clipboard"></i>
@@ -245,7 +245,7 @@
                     </label>
                     <div class="path-input-wrap">
                         <input type="text" id="hook-path" class="form-control vault-input"
-                               value="{{ default_path }}"
+                               value=""
                                placeholder="/path/to/your/repo">
                         <button class="paste-btn" onclick="pasteClipboard('hook-path')" title="Paste">
                             <i class="fas fa-clipboard"></i>
@@ -311,19 +311,50 @@ async function runScan() {
     if (!path) return;
 
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-circle-notch spin me-2"></i>Scanning…';
     area.style.display = 'none';
 
+    // Step 1: count files first so the user sees progress
+    if (mode === 'all') {
+        btn.innerHTML = '<i class="fas fa-circle-notch spin me-2"></i>Counting files…';
+        try {
+            const cr = await fetch('/scan/count', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+                body: JSON.stringify({ path }),
+            });
+            const cd = await cr.json();
+            if (cd.ok) {
+                const label = cd.capped ? `${cd.count.toLocaleString()}+ files` : `${cd.count.toLocaleString()} files`;
+                btn.innerHTML = `<i class="fas fa-circle-notch spin me-2"></i>Scanning ${label}…`;
+            } else {
+                btn.innerHTML = '<i class="fas fa-circle-notch spin me-2"></i>Scanning…';
+            }
+        } catch (_) {
+            btn.innerHTML = '<i class="fas fa-circle-notch spin me-2"></i>Scanning…';
+        }
+    } else {
+        btn.innerHTML = '<i class="fas fa-circle-notch spin me-2"></i>Scanning staged files…';
+    }
+
+    // Step 2: run the actual scan (60s timeout)
     try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 120000);
         const resp = await fetch('/scan/run', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
             body: JSON.stringify({ path, mode }),
+            signal: controller.signal,
         });
+        clearTimeout(timer);
         const data = await resp.json();
         renderResults(data);
     } catch (e) {
-        renderError('Network error: ' + e.message);
+        if (e.name === 'AbortError') {
+            renderError('Scan timed out after 2 minutes. Try scanning a specific src/ or project subdirectory instead of the root.');
+        } else {
+            renderError('Network error: ' + e.message);
+        }
     } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-magnifying-glass me-2"></i>Run Scan';
@@ -402,15 +433,19 @@ function renderResults(data) {
     const s = data.scanned;
     const modeLabel = data.mode === 'staged' ? 'staged files' : 'files';
 
-    statScan.innerHTML = `<i class="fas fa-file me-1"></i>${s} ${modeLabel} scanned`;
+    statScan.innerHTML = `<i class="fas fa-file me-1"></i>${data.truncated ? s.toLocaleString() + '+' : s.toLocaleString()} ${modeLabel} scanned`;
     statFind.innerHTML = n > 0
         ? `<i class="fas fa-triangle-exclamation me-1" style="color:#e67e22"></i>${n} finding${n !== 1 ? 's' : ''}`
         : `<i class="fas fa-check me-1" style="color:#4caf72"></i>0 findings`;
 
+    const truncNote = data.truncated
+        ? ` <span style="font-size:.75rem;opacity:.7">(capped at 3,000 — narrow your path to scan more)</span>`
+        : '';
+
     if (n === 0) {
         banner.innerHTML = `<div class="result-banner clean">
             <i class="fas fa-circle-check fa-lg"></i>
-            No secrets found in ${s} ${modeLabel}. You're clear to commit.
+            No secrets found in ${s.toLocaleString()} ${modeLabel}.${truncNote} You're clear to commit.
         </div>`;
         list.innerHTML = '';
         return;
