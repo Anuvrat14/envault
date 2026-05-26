@@ -176,11 +176,11 @@ function createWindow() {
         return { action: 'deny' };
     });
 
-    // On Windows: make the navbar draggable so the frameless window can be moved
+    // On Windows: make the navbar draggable and clear of the native title buttons
     if (!isMac) {
         mainWindow.webContents.on('did-finish-load', () => {
             mainWindow.webContents.insertCSS(`
-                .navbar { -webkit-app-region: drag; }
+                .navbar { -webkit-app-region: drag; padding-right: 150px; }
                 .navbar a, .navbar button, .navbar input,
                 .navbar select, .navbar label { -webkit-app-region: no-drag; }
             `).catch(() => {});
