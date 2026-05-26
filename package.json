@@ -1,6 +1,6 @@
 {
   "name": "dotward",
-  "version": "1.5.5",
+  "version": "1.5.6",
   "description": "Encrypted environment variable manager for developers",
   "author": "Anuvrat14",
   "main": "main.js",

@@ -242,13 +242,13 @@ autoUpdater.on('update-downloaded', info => {
     });
 
     if (response === 0) {
-        // Kill Flask first so its files aren't locked when the installer runs
+        // Kill Flask so its files aren't locked when the installer runs
         if (flaskProcess) {
             flaskProcess.kill();
             flaskProcess = null;
         }
-        // Give the process a moment to fully release file handles before installing
-        setTimeout(() => autoUpdater.quitAndInstall(true, true), 1500);
+        // Let NSIS handle silent install + relaunch via its defaults
+        setTimeout(() => autoUpdater.quitAndInstall(false, true), 1500);
     }
 });
 
