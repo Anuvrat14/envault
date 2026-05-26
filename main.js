@@ -6,8 +6,9 @@ const http  = require('http');
 const log   = require('electron-log');
 
 const PORT = 7331;
-let flaskProcess = null;
-let mainWindow   = null;
+let flaskProcess  = null;
+let mainWindow    = null;
+let loadingWindow = null;
 
 // ── Logging ────────────────────────────────────────────────────────────────
 log.transports.file.level = 'info';
@@ -38,13 +39,100 @@ function startFlask() {
     flaskProcess.on('exit', code => log.info('[flask] exited with code', code));
 }
 
+// ── Loading splash (shown while Flask warms up) ────────────────────────────
+function createLoadingWindow() {
+    const isMac = process.platform === 'darwin';
+    loadingWindow = new BrowserWindow({
+        width: 340,
+        height: 200,
+        resizable: false,
+        frame: false,
+        transparent: isMac,
+        alwaysOnTop: true,
+        ...(isMac ? {
+            vibrancy: 'fullscreen-ui',
+            visualEffectState: 'active',
+        } : {}),
+        backgroundColor: isMac ? '#00000000' : '#0d0d0d',
+        webPreferences: { nodeIntegration: false, contextIsolation: true },
+        icon: path.join(__dirname, 'static', 'icon.png'),
+        show: false,
+    });
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #e2e8f0;
+    background: transparent;
+    -webkit-app-region: drag;
+    user-select: none;
+  }
+  .logo { font-size: 28px; font-weight: 700; letter-spacing: -1px; }
+  .logo span { color: #818cf8; }
+  .spinner {
+    width: 24px; height: 24px;
+    border: 2px solid rgba(129,140,248,0.25);
+    border-top-color: #818cf8;
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .label { font-size: 12px; color: #64748b; }
+</style>
+</head>
+<body>
+  <div class="logo">dot<span>ward</span></div>
+  <div class="spinner"></div>
+  <div class="label">Starting up…</div>
+</body>
+</html>`;
+
+    loadingWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+    loadingWindow.once('ready-to-show', () => loadingWindow && loadingWindow.show());
+    loadingWindow.on('closed', () => { loadingWindow = null; });
+}
+
 // ── Poll until Flask is ready, then open window ────────────────────────────
-function waitForFlask(retries = 30) {
+function waitForFlask(retries = 60) {
     http.get(`http://127.0.0.1:${PORT}/`, () => {
-        createWindow();
+        // Flask is up — close splash and open main window
+        if (loadingWindow && !loadingWindow.isDestroyed()) {
+            loadingWindow.close();
+        }
+        if (!mainWindow) createWindow();
     }).on('error', () => {
-        if (retries > 0) setTimeout(() => waitForFlask(retries - 1), 500);
-        else log.error('Flask failed to start.');
+        if (retries > 0) {
+            setTimeout(() => waitForFlask(retries - 1), 500);
+        } else {
+            log.error('Flask failed to start after 30 seconds.');
+            if (loadingWindow && !loadingWindow.isDestroyed()) loadingWindow.close();
+            const choice = dialog.showMessageBoxSync({
+                type: 'error',
+                title: 'Dotward failed to start',
+                message: 'The background server didn\'t respond in time.',
+                detail: 'This can happen on first launch or on a slow machine. Try restarting the app.',
+                buttons: ['Retry', 'Quit'],
+                defaultId: 0,
+                cancelId: 1,
+            });
+            if (choice === 0) {
+                createLoadingWindow();
+                waitForFlask(60);
+            } else {
+                app.quit();
+            }
+        }
     });
 }
 
@@ -150,6 +238,7 @@ autoUpdater.on('error', err => {
 // ── App lifecycle ──────────────────────────────────────────────────────────
 app.whenReady().then(() => {
     startFlask();
+    createLoadingWindow();
     waitForFlask();
 });
 
@@ -159,7 +248,12 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
-    if (mainWindow === null) waitForFlask();
+    if (mainWindow === null && loadingWindow === null) {
+        createLoadingWindow();
+        waitForFlask();
+    } else if (mainWindow) {
+        mainWindow.show();
+    }
 });
 
 app.on('before-quit', () => {

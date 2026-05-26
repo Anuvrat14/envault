@@ -33,8 +33,8 @@ def create_app():
     csrf.init_app(app)
 
     # Jinja globals
-    from datetime import datetime, timezone
-    app.jinja_env.globals['now_utc'] = lambda: datetime.now(timezone.utc)
+    from datetime import datetime
+    app.jinja_env.globals['now_utc'] = lambda: datetime.utcnow()
     app.jinja_env.globals['app_version'] = _get_version()
 
     # Blueprints
