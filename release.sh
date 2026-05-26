@@ -1,8 +1,25 @@
 #!/bin/bash
 set -e
 
+# ── Version bump ───────────────────────────────────────────────────────────
+# Usage: ./release.sh          → auto patch bump (1.4.1 → 1.4.2)
+#        ./release.sh minor    → minor bump (1.4.x → 1.5.0)
+#        ./release.sh major    → major bump (1.x.x → 2.0.0)
+#        ./release.sh nobump   → use current version as-is
+
+BUMP=${1:-patch}
+
+if [ "$BUMP" != "nobump" ]; then
+  npm version $BUMP --no-git-tag-version > /dev/null
+fi
+
 VERSION=$(node -p "require('./package.json').version")
 TAG="v$VERSION"
+
+# Commit the version bump
+git add package.json
+git commit -m "chore: bump version to $VERSION" --no-verify 2>/dev/null || true
+git push 2>/dev/null || true
 
 echo ""
 echo "  Dotward $TAG — Release Script"
@@ -18,7 +35,7 @@ echo "        ✓ Binary built"
 # ── Step 2: Electron Builder ───────────────────────────────────────────────
 echo ""
 echo "  [2/4] Building macOS DMG..."
-npx electron-builder --mac --publish never 2>&1 | grep -E "•|building|error" | sed 's/^/        /'
+npx electron-builder --mac --arm64 --publish never 2>&1 | grep -E "•|building|error" | sed 's/^/        /'
 echo "        ✓ DMG built"
 
 # ── Step 3: GitHub Release ─────────────────────────────────────────────────
@@ -45,21 +62,18 @@ echo ""
 upload_file() {
   local filepath="$1"
   local filename=$(basename "$filepath")
-  local mimetype="$2"
-  echo -n "        Uploading $filename "
-  curl -# -X POST "${UPLOAD_URL}?name=${filename}" \
-    -H "Authorization: Bearer $(gh auth token)" \
-    -H "Content-Type: $mimetype" \
-    --data-binary "@$filepath" \
-    -o /dev/null 2>&1 | grep -oE '[0-9]+%' | tail -1 || true
-  echo "✓"
+  echo -n "        Uploading $filename ... "
+  if gh release upload "$TAG" "$filepath" --clobber 2>&1; then
+    echo "✓"
+  else
+    echo "✗ FAILED"
+    exit 1
+  fi
 }
 
-upload_file "dist/Dotward-${VERSION}-arm64.dmg"      "application/octet-stream"
-upload_file "dist/Dotward-${VERSION}-arm64-mac.zip"  "application/zip"
-upload_file "dist/Dotward-${VERSION}.dmg"            "application/octet-stream"
-upload_file "dist/Dotward-${VERSION}-mac.zip"        "application/zip"
-upload_file "dist/latest-mac.yml"                    "text/yaml"
+upload_file "dist/Dotward-${VERSION}-arm64.dmg"
+upload_file "dist/Dotward-${VERSION}-arm64-mac.zip"
+upload_file "dist/latest-mac.yml"
 
 # ── Publish ────────────────────────────────────────────────────────────────
 echo ""
