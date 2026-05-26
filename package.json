@@ -1,6 +1,6 @@
 {
   "name": "dotward",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Encrypted environment variable manager for developers",
   "author": "Anuvrat14",
   "main": "main.js",
@@ -32,28 +32,42 @@
     "mac": {
       "category": "public.app-category.developer-tools",
       "extraResources": [
-        { "from": "dist/dotward-server", "to": "dotward-server" }
+        {
+          "from": "dist/dotward-server",
+          "to": "dotward-server"
+        }
       ],
       "target": [
         {
           "target": "dmg",
-          "arch": ["arm64", "x64"]
+          "arch": [
+            "arm64",
+            "x64"
+          ]
         },
         {
           "target": "zip",
-          "arch": ["arm64", "x64"]
+          "arch": [
+            "arm64",
+            "x64"
+          ]
         }
       ],
       "icon": "static/icon.icns"
     },
     "win": {
       "extraResources": [
-        { "from": "dist/dotward-server.exe", "to": "dotward-server.exe" }
+        {
+          "from": "dist/dotward-server.exe",
+          "to": "dotward-server.exe"
+        }
       ],
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "static/icon.ico"
