@@ -1,6 +1,6 @@
 {
   "name": "dotward",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Encrypted environment variable manager for developers",
   "author": "Anuvrat14",
   "main": "main.js",
@@ -64,7 +64,9 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true
+      "allowSilentInstall": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
     }
   },
   "devDependencies": {

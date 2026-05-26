@@ -227,7 +227,9 @@ autoUpdater.on('update-downloaded', info => {
     });
 
     if (response === 0) {
-        autoUpdater.quitAndInstall(false, true);
+        // isSilent=true, isForceRunAfter=true
+        // On Windows NSIS this triggers the installer silently then relaunches
+        autoUpdater.quitAndInstall(true, true);
     }
 });
 
