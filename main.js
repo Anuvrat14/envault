@@ -165,6 +165,7 @@ function createWindow() {
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js'),
         },
         icon: path.join(__dirname, 'static', 'icon.png'),
     });
@@ -175,17 +176,6 @@ function createWindow() {
         shell.openExternal(url);
         return { action: 'deny' };
     });
-
-    // On Windows: make the navbar draggable and clear of the native title buttons
-    if (!isMac) {
-        mainWindow.webContents.on('did-finish-load', () => {
-            mainWindow.webContents.insertCSS(`
-                .navbar { -webkit-app-region: drag; padding-right: 150px; }
-                .navbar a, .navbar button, .navbar input,
-                .navbar select, .navbar label { -webkit-app-region: no-drag; }
-            `).catch(() => {});
-        });
-    }
 
     mainWindow.on('closed', () => { mainWindow = null; });
 
