@@ -17,6 +17,7 @@ datas = [
     (os.path.join(REPO_ROOT, 'crypto.py'),      '.'),
     (os.path.join(REPO_ROOT, 'risk_engine.py'), '.'),
     (os.path.join(REPO_ROOT, 'cli_state.py'),   '.'),
+    (os.path.join(REPO_ROOT, 'scan_engine.py'), '.'),
     (os.path.join(REPO_ROOT, 'run.py'),         '.'),
 ] + waitress_datas
 
@@ -38,8 +39,8 @@ hiddenimports = [
     'cryptography.hazmat.backends',
     'cryptography.hazmat.backends.openssl',
     'waitress', 'waitress.server',
-    'routes.auth', 'routes.projects', 'routes.api',
-    'risk_engine', 'cli_state',
+    'routes.auth', 'routes.projects', 'routes.api', 'routes.scan',
+    'risk_engine', 'cli_state', 'scan_engine',
     'hashlib', 'hmac', 'base64', 'secrets', 'uuid',
     'ssl', 'socket', 'threading',
     'logging', 'logging.handlers',

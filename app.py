@@ -41,9 +41,11 @@ def create_app():
     from routes.auth     import auth_bp
     from routes.projects import projects_bp
     from routes.api      import api_bp
+    from routes.scan     import scan_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(projects_bp)
     app.register_blueprint(api_bp)
+    app.register_blueprint(scan_bp)
     csrf.exempt(api_bp)   # API uses token auth, not CSRF cookies
 
     # Create tables + migrate existing DBs

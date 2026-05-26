@@ -25,6 +25,9 @@
             <a href="{{ url_for('projects.security_overview') }}" class="nav-link {% if request.endpoint == 'projects.security_overview' %}active{% endif %}">
                 <i class="fas fa-shield-halved me-1"></i>Security
             </a>
+            <a href="{{ url_for('scan.scan_page') }}" class="nav-link {% if request.endpoint == 'scan.scan_page' %}active{% endif %}">
+                <i class="fas fa-magnifying-glass me-1"></i>Scan
+            </a>
             <a href="{{ url_for('auth.settings') }}" class="nav-link {% if request.endpoint == 'auth.settings' %}active{% endif %}">
                 <i class="fas fa-gear me-1"></i>Settings
             </a>

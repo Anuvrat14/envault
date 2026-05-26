@@ -1,0 +1,478 @@
+{% extends "base.html" %}
+{% block title %}Secret Scanner — Dotward{% endblock %}
+
+{% block extra_css %}
+<style>
+.scan-card {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    backdrop-filter: var(--blur-md);
+    -webkit-backdrop-filter: var(--blur-md);
+    padding: 1.5rem;
+    height: 100%;
+}
+
+.scan-card h6 {
+    font-size: .8rem;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,.5);
+    margin-bottom: 1.1rem;
+}
+
+.path-input-wrap {
+    position: relative;
+}
+.path-input-wrap .vault-input {
+    padding-right: 2.6rem;
+    font-size: .82rem;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+}
+.path-input-wrap .paste-btn {
+    position: absolute;
+    right: .5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: rgba(255,255,255,.35);
+    font-size: .8rem;
+    cursor: pointer;
+    padding: .2rem .4rem;
+    transition: color .15s;
+}
+.path-input-wrap .paste-btn:hover { color: rgba(255,255,255,.7); }
+
+.mode-pill {
+    display: inline-flex;
+    gap: .5rem;
+    background: rgba(0,0,0,.25);
+    border-radius: 8px;
+    padding: .25rem;
+    width: 100%;
+}
+.mode-pill label {
+    flex: 1;
+    text-align: center;
+    font-size: .78rem;
+    font-weight: 500;
+    padding: .35rem .6rem;
+    border-radius: 6px;
+    cursor: pointer;
+    color: rgba(255,255,255,.5);
+    transition: all .15s;
+    margin: 0;
+    user-select: none;
+}
+.mode-pill input[type=radio] { display: none; }
+.mode-pill input[type=radio]:checked + label {
+    background: var(--glass-strong);
+    color: #fff;
+    box-shadow: 0 1px 4px rgba(0,0,0,.3);
+}
+
+/* Results */
+#results-area { display: none; }
+
+.result-banner {
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    font-size: .88rem;
+    font-weight: 500;
+    margin-bottom: 1.25rem;
+}
+.result-banner.clean {
+    background: rgba(46,160,67,.15);
+    border: 1px solid rgba(46,160,67,.3);
+    color: #4caf72;
+}
+.result-banner.dirty {
+    background: rgba(231,76,60,.12);
+    border: 1px solid rgba(231,76,60,.3);
+    color: #e74c3c;
+}
+
+.finding-group {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: .75rem;
+    overflow: hidden;
+}
+.finding-group-header {
+    padding: .65rem 1rem;
+    background: rgba(0,0,0,.2);
+    border-bottom: 1px solid var(--border);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: .78rem;
+    color: rgba(255,255,255,.8);
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+.finding-row {
+    padding: .55rem 1rem .55rem 2.5rem;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: .5rem;
+    align-items: start;
+    font-size: .8rem;
+}
+.finding-row:last-child { border-bottom: none; }
+.finding-line {
+    color: rgba(255,255,255,.35);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: .75rem;
+    padding-top: .05rem;
+}
+.finding-body { display: flex; flex-direction: column; gap: .2rem; }
+.finding-reason { color: rgba(255,255,255,.8); }
+.finding-match {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: .73rem;
+    color: rgba(231,76,60,.9);
+    word-break: break-all;
+}
+
+.sev-badge {
+    font-size: .65rem;
+    font-weight: 600;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    padding: .15rem .45rem;
+    border-radius: 4px;
+}
+.sev-critical { background: rgba(231,76,60,.25); color: #e74c3c; border: 1px solid rgba(231,76,60,.4); }
+.sev-high     { background: rgba(230,126,34,.2);  color: #e67e22; border: 1px solid rgba(230,126,34,.35); }
+.sev-medium   { background: rgba(241,196,15,.15); color: #f1c40f; border: 1px solid rgba(241,196,15,.3); }
+.sev-low      { background: rgba(52,152,219,.15); color: #3498db; border: 1px solid rgba(52,152,219,.3); }
+
+/* Hook card status */
+.hook-status {
+    font-size: .8rem;
+    padding: .5rem .75rem;
+    border-radius: var(--radius-sm);
+    margin-top: .75rem;
+    display: none;
+}
+.hook-status.ok      { background: rgba(46,160,67,.15);  color: #4caf72; border: 1px solid rgba(46,160,67,.3); }
+.hook-status.error   { background: rgba(231,76,60,.12);  color: #e74c3c; border: 1px solid rgba(231,76,60,.3); }
+.hook-status.already { background: rgba(241,196,15,.12); color: #f1c40f; border: 1px solid rgba(241,196,15,.3); }
+
+/* Spinner */
+.spin { animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.stat-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    font-size: .75rem;
+    color: rgba(255,255,255,.4);
+    background: rgba(0,0,0,.2);
+    border-radius: 20px;
+    padding: .2rem .65rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+
+    <!-- Header -->
+    <div class="mb-4">
+        <h4 class="mb-0">Secret Scanner</h4>
+        <small class="text-muted">Scan any local directory for hardcoded secrets before they reach a repository.</small>
+    </div>
+
+    <div class="row g-3 mb-4">
+
+        <!-- Scan card -->
+        <div class="col-lg-7">
+            <div class="scan-card">
+                <h6><i class="fas fa-magnifying-glass me-2"></i>Scan Directory</h6>
+
+                <div class="mb-3">
+                    <label class="form-label" style="font-size:.8rem; color:rgba(255,255,255,.6);">
+                        Path to scan
+                    </label>
+                    <div class="path-input-wrap">
+                        <input type="text" id="scan-path" class="form-control vault-input"
+                               value="{{ default_path }}"
+                               placeholder="/path/to/your/project">
+                        <button class="paste-btn" onclick="pasteClipboard('scan-path')" title="Paste">
+                            <i class="fas fa-clipboard"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="mode-pill">
+                        <input type="radio" name="scan-mode" id="mode-all" value="all" checked>
+                        <label for="mode-all"><i class="fas fa-folder-tree me-1"></i>All Files</label>
+                        <input type="radio" name="scan-mode" id="mode-staged" value="staged">
+                        <label for="mode-staged"><i class="fas fa-code-commit me-1"></i>Staged Only</label>
+                    </div>
+                    <small class="text-muted" id="mode-hint" style="font-size:.73rem; margin-top:.4rem; display:block;">
+                        Scans every file in the directory, skipping binaries and dependencies.
+                    </small>
+                </div>
+
+                <button class="btn btn-primary w-100" id="scan-btn" onclick="runScan()">
+                    <i class="fas fa-magnifying-glass me-2"></i>Run Scan
+                </button>
+            </div>
+        </div>
+
+        <!-- Hook card -->
+        <div class="col-lg-5">
+            <div class="scan-card">
+                <h6><i class="fas fa-code-branch me-2"></i>Pre-commit Hook</h6>
+                <p style="font-size:.8rem; color:rgba(255,255,255,.55); line-height:1.5; margin-bottom:1rem;">
+                    Install a git hook that auto-scans staged files on every
+                    <code>git commit</code> — blocks the commit if secrets are found.
+                </p>
+
+                <div class="mb-3">
+                    <label class="form-label" style="font-size:.8rem; color:rgba(255,255,255,.6);">
+                        Repository path
+                    </label>
+                    <div class="path-input-wrap">
+                        <input type="text" id="hook-path" class="form-control vault-input"
+                               value="{{ default_path }}"
+                               placeholder="/path/to/your/repo">
+                        <button class="paste-btn" onclick="pasteClipboard('hook-path')" title="Paste">
+                            <i class="fas fa-clipboard"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button class="btn btn-outline-light w-100" id="hook-btn" onclick="installHook()">
+                    <i class="fas fa-plug me-2"></i>Install Hook
+                </button>
+
+                <div class="hook-status" id="hook-status"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div id="results-area">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <h6 class="mb-0" style="font-size:.8rem; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.5);">
+                <i class="fas fa-list me-2"></i>Results
+            </h6>
+            <div class="d-flex align-items-center gap-2">
+                <span class="stat-pill" id="stat-scanned"></span>
+                <span class="stat-pill" id="stat-findings"></span>
+            </div>
+        </div>
+        <div id="result-banner"></div>
+        <div id="findings-list"></div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = document.querySelector('meta[name=csrf-token]').content;
+
+// Mode hint text
+document.querySelectorAll('input[name=scan-mode]').forEach(r => {
+    r.addEventListener('change', () => {
+        const hints = {
+            all:    'Scans every file in the directory, skipping binaries and dependencies.',
+            staged: 'Scans only files staged for the next commit (git diff --cached).',
+        };
+        document.getElementById('mode-hint').textContent = hints[r.value];
+    });
+});
+
+async function pasteClipboard(inputId) {
+    try {
+        const text = await navigator.clipboard.readText();
+        document.getElementById(inputId).value = text.trim();
+    } catch (_) {}
+}
+
+async function runScan() {
+    const path   = document.getElementById('scan-path').value.trim();
+    const mode   = document.querySelector('input[name=scan-mode]:checked').value;
+    const btn    = document.getElementById('scan-btn');
+    const area   = document.getElementById('results-area');
+
+    if (!path) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-circle-notch spin me-2"></i>Scanning…';
+    area.style.display = 'none';
+
+    try {
+        const resp = await fetch('/scan/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ path, mode }),
+        });
+        const data = await resp.json();
+        renderResults(data);
+    } catch (e) {
+        renderError('Network error: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-magnifying-glass me-2"></i>Run Scan';
+    }
+}
+
+async function installHook() {
+    const repo_path = document.getElementById('hook-path').value.trim();
+    const btn       = document.getElementById('hook-btn');
+    const status    = document.getElementById('hook-status');
+
+    if (!repo_path) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-circle-notch spin me-2"></i>Installing…';
+    status.style.display = 'none';
+
+    try {
+        const resp = await fetch('/scan/install-hook', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify({ repo_path }),
+        });
+        const data = await resp.json();
+
+        if (!data.ok) {
+            status.className = 'hook-status error';
+            status.innerHTML = `<i class="fas fa-circle-xmark me-2"></i>${data.error}`;
+        } else if (data.status === 'already_installed') {
+            status.className = 'hook-status already';
+            status.innerHTML = `<i class="fas fa-circle-check me-2"></i>Hook already installed — nothing changed.`;
+        } else if (data.status === 'appended') {
+            status.className = 'hook-status ok';
+            status.innerHTML = `<i class="fas fa-circle-check me-2"></i>Appended to existing hook at <code>${data.path}</code>`;
+        } else {
+            status.className = 'hook-status ok';
+            status.innerHTML = `<i class="fas fa-circle-check me-2"></i>Hook installed at <code>${data.path}</code>`;
+        }
+        status.style.display = 'block';
+    } catch (e) {
+        status.className = 'hook-status error';
+        status.innerHTML = `<i class="fas fa-circle-xmark me-2"></i>Network error: ${e.message}`;
+        status.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-plug me-2"></i>Install Hook';
+    }
+}
+
+function renderError(msg) {
+    const area = document.getElementById('results-area');
+    document.getElementById('result-banner').innerHTML =
+        `<div class="result-banner dirty"><i class="fas fa-circle-xmark fa-lg"></i>${msg}</div>`;
+    document.getElementById('findings-list').innerHTML = '';
+    document.getElementById('stat-scanned').textContent = '';
+    document.getElementById('stat-findings').textContent = '';
+    area.style.display = 'block';
+}
+
+function renderResults(data) {
+    const area     = document.getElementById('results-area');
+    const banner   = document.getElementById('result-banner');
+    const list     = document.getElementById('findings-list');
+    const statScan = document.getElementById('stat-scanned');
+    const statFind = document.getElementById('stat-findings');
+
+    area.style.display = 'block';
+
+    if (!data.ok) {
+        banner.innerHTML = `<div class="result-banner dirty"><i class="fas fa-circle-xmark fa-lg"></i>${data.error}</div>`;
+        list.innerHTML = '';
+        return;
+    }
+
+    const n = data.findings.length;
+    const s = data.scanned;
+    const modeLabel = data.mode === 'staged' ? 'staged files' : 'files';
+
+    statScan.innerHTML = `<i class="fas fa-file me-1"></i>${s} ${modeLabel} scanned`;
+    statFind.innerHTML = n > 0
+        ? `<i class="fas fa-triangle-exclamation me-1" style="color:#e67e22"></i>${n} finding${n !== 1 ? 's' : ''}`
+        : `<i class="fas fa-check me-1" style="color:#4caf72"></i>0 findings`;
+
+    if (n === 0) {
+        banner.innerHTML = `<div class="result-banner clean">
+            <i class="fas fa-circle-check fa-lg"></i>
+            No secrets found in ${s} ${modeLabel}. You're clear to commit.
+        </div>`;
+        list.innerHTML = '';
+        return;
+    }
+
+    banner.innerHTML = `<div class="result-banner dirty">
+        <i class="fas fa-triangle-exclamation fa-lg"></i>
+        ${n} potential secret${n !== 1 ? 's' : ''} found — review before committing.
+    </div>`;
+
+    // Group by file
+    const byFile = {};
+    for (const f of data.findings) {
+        if (!byFile[f.file]) byFile[f.file] = [];
+        byFile[f.file].push(f);
+    }
+
+    const sevIcon = {
+        critical: '<i class="fas fa-skull" style="color:#e74c3c"></i>',
+        high:     '<i class="fas fa-fire"  style="color:#e67e22"></i>',
+        medium:   '<i class="fas fa-circle-exclamation" style="color:#f1c40f"></i>',
+        low:      '<i class="fas fa-circle-info" style="color:#3498db"></i>',
+    };
+
+    let html = '';
+    for (const [file, findings] of Object.entries(byFile)) {
+        const shortPath = file.length > 60 ? '…' + file.slice(-57) : file;
+        const worstSev  = findings[0].severity;
+        html += `
+        <div class="finding-group">
+            <div class="finding-group-header">
+                ${sevIcon[worstSev] || ''}&nbsp;${escHtml(shortPath)}
+                <span class="ms-auto" style="color:rgba(255,255,255,.3); font-size:.72rem;">${findings.length} finding${findings.length !== 1 ? 's' : ''}</span>
+            </div>`;
+        for (const f of findings) {
+            const locText = f.line > 0 ? `line ${f.line}` : 'file';
+            html += `
+            <div class="finding-row">
+                <div class="finding-line">${escHtml(locText)}</div>
+                <div class="finding-body">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="sev-badge sev-${f.severity}">${f.severity}</span>
+                        <span class="finding-reason">${escHtml(f.reason)}</span>
+                    </div>
+                    ${f.match && f.match !== f.file
+                        ? `<div class="finding-match">→ ${escHtml(f.match)}</div>`
+                        : ''}
+                </div>
+            </div>`;
+        }
+        html += `</div>`;
+    }
+    list.innerHTML = html;
+    area.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function escHtml(s) {
+    return String(s)
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;');
+}
+</script>
+{% endblock %}
