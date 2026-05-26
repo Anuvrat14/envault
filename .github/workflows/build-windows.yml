@@ -56,28 +56,38 @@ jobs:
 
       - name: Upload Windows artifacts to release
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
         shell: pwsh
         run: |
           $tag = if ("${{ github.event_name }}" -eq "workflow_dispatch") { "${{ github.event.inputs.tag }}" } else { "${{ github.ref_name }}" }
-          $version = (Get-Content package.json | ConvertFrom-Json).version
+          $version = $tag.TrimStart('v')
           $installerName = "Dotward-Setup-$version.exe"
 
-          # Find and rename installer (removes spaces)
+          # Patch package.json so electron-builder names the exe correctly
+          $pkg = Get-Content package.json | ConvertFrom-Json
+          $pkg.version = $version
+          $pkg | ConvertTo-Json -Depth 10 | Set-Content package.json
+
+          # Find and rename installer
           $src = Get-ChildItem dist -Filter "*.exe" | Where-Object { $_.Name -notlike "*dotward-server*" } | Select-Object -First 1 -ExpandProperty FullName
           $dest = "dist\$installerName"
           Copy-Item $src $dest
           Write-Host "Installer: $dest"
 
-          # Delete existing assets so re-runs don't fail
-          gh release delete-asset $tag $installerName --yes 2>$null
-          gh release delete-asset $tag "latest.yml" --yes 2>$null
+          # Delete existing assets via API to avoid 403 on clobber
+          $releaseId = (gh api repos/Anuvrat14/dotward/releases/tags/$tag | ConvertFrom-Json).id
+          $assets = gh api repos/Anuvrat14/dotward/releases/$releaseId/assets | ConvertFrom-Json
+          foreach ($asset in $assets) {
+            if ($asset.name -eq $installerName -or $asset.name -eq "latest.yml") {
+              gh api repos/Anuvrat14/dotward/releases/assets/$($asset.id) -X DELETE
+              Write-Host "Deleted existing asset: $($asset.name)"
+            }
+          }
 
-          # Upload using gh (most reliable, handles auth automatically)
           Write-Host "Uploading $installerName..."
-          gh release upload $tag $dest --clobber
+          gh release upload $tag $dest
 
           Write-Host "Uploading latest.yml..."
-          gh release upload $tag dist\latest.yml --clobber
+          gh release upload $tag dist\latest.yml
 
           Write-Host "Done."
