@@ -33,10 +33,14 @@ pyinstaller dotward_macos_arm64.spec --noconfirm --log-level WARN
 echo "        ✓ Binary built"
 
 # ── Step 2: Electron Builder ───────────────────────────────────────────────
+# IMPORTANT: build DMG + ZIP in ONE run so electron-builder generates a
+# correct latest-mac.yml that lists both files. If you build them separately
+# the yml will be overwritten and the auto-updater will fail with
+# "ZIP file not provided".
 echo ""
-echo "  [2/4] Building macOS DMG..."
-npx electron-builder --mac --arm64 --publish never 2>&1 | grep -E "•|building|error" | sed 's/^/        /'
-echo "        ✓ DMG built"
+echo "  [2/4] Building macOS DMG + ZIP (arm64)..."
+npx electron-builder --mac dmg zip --arm64 --publish never 2>&1 | grep -E "•|building|error" | sed 's/^/        /'
+echo "        ✓ DMG + ZIP built"
 
 # ── Step 3: GitHub Release ─────────────────────────────────────────────────
 echo ""
