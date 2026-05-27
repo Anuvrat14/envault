@@ -16,6 +16,58 @@ autoUpdater.logger = log;
 autoUpdater.autoDownload    = true;   // download silently in background
 autoUpdater.autoInstallOnAppQuit = true; // install on next quit
 
+// ── CLI auto-sync ──────────────────────────────────────────────────────────
+// On every launch (including after an auto-update), copy the bundled
+// dotward_cli.py to the user's PATH so the CLI stays in sync automatically.
+function syncCLI() {
+    if (process.platform === 'win32') return; // Windows: skip (PowerShell path TBD)
+    const fs  = require('fs');
+    const os  = require('os');
+
+    const cliSrc = app.isPackaged
+        ? path.join(process.resourcesPath, 'dotward_cli.py')
+        : path.join(__dirname, 'dotward_cli.py');
+
+    if (!fs.existsSync(cliSrc)) {
+        log.warn('[cli] dotward_cli.py not found in resources, skipping sync');
+        return;
+    }
+
+    // Candidate install paths — try in order, use first writable one
+    const candidates = [
+        '/usr/local/bin/dotward',
+        path.join(os.homedir(), '.dotward', 'bin', 'dotward'),
+    ];
+
+    for (const dest of candidates) {
+        try {
+            fs.mkdirSync(path.dirname(dest), { recursive: true });
+            fs.copyFileSync(cliSrc, dest);
+            fs.chmodSync(dest, 0o755);
+            log.info(`[cli] Synced CLI → ${dest}`);
+
+            // First-time install: notify user about PATH if using fallback
+            if (dest.includes('.dotward')) {
+                const tokenPath = path.join(os.homedir(), '.dotward', '.cli_path_notified');
+                if (!fs.existsSync(tokenPath)) {
+                    fs.writeFileSync(tokenPath, '1');
+                    if (Notification.isSupported()) {
+                        new Notification({
+                            title: 'Dotward CLI installed',
+                            body: `Add ~/.dotward/bin to your PATH:\nexport PATH="$HOME/.dotward/bin:$PATH"`,
+                            silent: false,
+                        }).show();
+                    }
+                }
+            }
+            return;
+        } catch (_) {
+            // Not writable — try next candidate
+        }
+    }
+    log.warn('[cli] Could not sync CLI to any candidate path');
+}
+
 // ── Start Flask ────────────────────────────────────────────────────────────
 function startFlask() {
     const isPackaged = app.isPackaged;
@@ -269,6 +321,7 @@ process.on('unhandledRejection', (reason) => {
 
 // ── App lifecycle ──────────────────────────────────────────────────────────
 app.whenReady().then(() => {
+    syncCLI();
     startFlask();
     createLoadingWindow();
     waitForFlask();

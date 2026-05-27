@@ -1,6 +1,6 @@
 {
   "name": "dotward",
-  "version": "1.7.3",
+  "version": "1.7.4",
   "description": "Encrypted environment variable manager for developers",
   "author": "Anuvrat14",
   "main": "main.js",
@@ -36,6 +36,10 @@
         {
           "from": "dist/dotward-server",
           "to": "dotward-server"
+        },
+        {
+          "from": "dotward_cli.py",
+          "to": "dotward_cli.py"
         }
       ],
       "target": [
@@ -61,6 +65,10 @@
         {
           "from": "dist/dotward-server.exe",
           "to": "dotward-server.exe"
+        },
+        {
+          "from": "dotward_cli.py",
+          "to": "dotward_cli.py"
         }
       ],
       "target": [

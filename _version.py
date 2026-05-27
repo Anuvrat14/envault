@@ -1,2 +1,2 @@
 # Auto-generated at build time by release.sh — do not edit manually.
-__version__ = '1.7.3'
+__version__ = '1.7.4'
