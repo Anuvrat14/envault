@@ -36,6 +36,8 @@ class Project(db.Model):
                             default=lambda: datetime.now(timezone.utc),
                             onupdate=lambda: datetime.now(timezone.utc))
 
+    mcp_enabled = db.Column(db.Boolean, default=True, nullable=False)   # allow MCP access
+
     variables = db.relationship('EnvVariable', backref='project',
                                 cascade='all, delete-orphan',
                                 order_by='EnvVariable.key')
@@ -100,3 +102,15 @@ class McpAccessLog(db.Model):
     key         = db.Column(db.String(200), nullable=False)
     action      = db.Column(db.String(50), nullable=False)    # get_secret / list_projects / inject_env
     created_at  = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class McpRequest(db.Model):
+    """Pending confirmation request for a get_secret call."""
+    __tablename__ = 'mcp_requests'
+
+    id         = db.Column(db.Integer, primary_key=True)
+    tool       = db.Column(db.String(100), nullable=True)
+    project    = db.Column(db.String(100), nullable=False)
+    key        = db.Column(db.String(200), nullable=False)
+    status     = db.Column(db.String(20), default='pending')  # pending / approved / denied
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))

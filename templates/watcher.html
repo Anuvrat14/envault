@@ -58,7 +58,34 @@
 .mcp-setup-card p  { font-size: .8rem; color: rgba(255,255,255,.5); margin-bottom: .9rem; }
 .mcp-connect-btn { background: rgba(129,140,248,.15); border: 1px solid rgba(129,140,248,.3); color: #818cf8; font-size: .8rem; padding: .4rem .9rem; border-radius: 7px; cursor: pointer; transition: all .15s; display: inline-flex; align-items: center; gap: .4rem; }
 .mcp-connect-btn:hover { background: rgba(129,140,248,.25); }
+.mcp-connect-btn.active { background: rgba(129,140,248,.3); border-color: #818cf8; }
 .mcp-code { background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.08); border-radius: 7px; padding: .7rem 1rem; font-size: .72rem; font-family: monospace; color: rgba(255,255,255,.6); white-space: pre; overflow-x: auto; margin-top: .7rem; }
+.mcp-steps { counter-reset: step; list-style: none; padding: 0; margin: .8rem 0 0; }
+.mcp-steps li { counter-increment: step; display: flex; gap: .8rem; align-items: flex-start; margin-bottom: .6rem; font-size: .82rem; color: rgba(255,255,255,.65); }
+.mcp-steps li::before { content: counter(step); background: rgba(129,140,248,.2); color: #818cf8; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: .7rem; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+.mcp-status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: .4rem; }
+.mcp-status-dot.connected { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+.mcp-status-dot.disconnected { background: rgba(255,255,255,.2); }
+
+/* Confirmation card */
+.confirm-card { background: rgba(234,179,8,.06); border: 1px solid rgba(234,179,8,.25); border-radius: 10px; padding: 1rem 1.1rem; margin-bottom: .6rem; }
+.confirm-card .confirm-title { font-size: .85rem; font-weight: 600; color: #fbbf24; margin-bottom: .3rem; }
+.confirm-card .confirm-detail { font-size: .78rem; color: rgba(255,255,255,.55); margin-bottom: .7rem; }
+.confirm-card .confirm-detail strong { color: rgba(255,255,255,.8); font-family: monospace; }
+.btn-approve { background: rgba(30,126,78,.2); border: 1px solid rgba(74,222,128,.3); color: #4ade80; font-size: .78rem; padding: .3rem .8rem; border-radius: 6px; cursor: pointer; transition: all .15s; }
+.btn-approve:hover { background: rgba(30,126,78,.35); }
+.btn-deny { background: rgba(231,76,60,.1); border: 1px solid rgba(231,76,60,.25); color: #f87171; font-size: .78rem; padding: .3rem .8rem; border-radius: 6px; cursor: pointer; transition: all .15s; }
+.btn-deny:hover { background: rgba(231,76,60,.2); }
+
+/* Project MCP toggles */
+.project-mcp-row { display: flex; align-items: center; justify-content: space-between; padding: .55rem .8rem; border-radius: 8px; background: rgba(255,255,255,.03); margin-bottom: .35rem; border: 1px solid rgba(255,255,255,.06); }
+.project-mcp-name { font-size: .82rem; color: rgba(255,255,255,.7); }
+.mcp-toggle { position: relative; display: inline-block; width: 36px; height: 20px; }
+.mcp-toggle input { opacity: 0; width: 0; height: 0; }
+.mcp-toggle-slider { position: absolute; cursor: pointer; inset: 0; background: rgba(255,255,255,.15); border-radius: 20px; transition: .2s; }
+.mcp-toggle-slider:before { content: ""; position: absolute; height: 14px; width: 14px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .2s; }
+.mcp-toggle input:checked + .mcp-toggle-slider { background: #818cf8; }
+.mcp-toggle input:checked + .mcp-toggle-slider:before { transform: translateX(16px); }
 </style>
 {% endblock %}
 
@@ -72,29 +99,63 @@
 
     <!-- MCP Setup Card -->
     <div class="mcp-setup-card">
-        <h5><i class="fas fa-robot me-2" style="color:#818cf8;"></i>AI Tool Integration (MCP)</h5>
-        <p>Let Cursor, Claude Desktop, and other AI tools read secrets directly from your vault — no plaintext in config files.</p>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:.3rem;">
+            <h5 style="margin:0;"><i class="fas fa-robot me-2" style="color:#818cf8;"></i>AI Tool Integration (MCP)</h5>
+            <span id="mcp-connection-status" style="font-size:.75rem; color:rgba(255,255,255,.35);">
+                <span class="mcp-status-dot disconnected" id="mcp-dot"></span>
+                <span id="mcp-status-text">Not connected</span>
+            </span>
+        </div>
+        <p>Let Claude, Cursor, and other AI tools read secrets straight from your vault. No more pasting keys into chat.</p>
 
-        <div style="display:flex; gap:.6rem; flex-wrap:wrap;">
-            <button class="mcp-connect-btn" onclick="showMcpConfig('cursor')">
-                <i class="fas fa-plug"></i> Connect Cursor
+        <!-- Step-by-step -->
+        <ul class="mcp-steps">
+            <li>Pick your AI tool below and copy the config snippet into its settings file.</li>
+            <li>Restart the AI tool — it will connect to Dotward automatically.</li>
+            <li>Keep Dotward open and unlocked. Every secret request shows up here for your approval.</li>
+        </ul>
+
+        <div style="display:flex; gap:.6rem; flex-wrap:wrap; margin-top:1rem;">
+            <button class="mcp-connect-btn" id="btn-claude" onclick="connectTool('claude', this)">
+                <i class="fas fa-bolt me-1"></i> Connect Claude Desktop
             </button>
-            <button class="mcp-connect-btn" onclick="showMcpConfig('claude')">
-                <i class="fas fa-plug"></i> Connect Claude Desktop
+            <button class="mcp-connect-btn" id="btn-cursor" onclick="connectTool('cursor', this)">
+                <i class="fas fa-bolt me-1"></i> Connect Cursor
             </button>
-            <button class="mcp-connect-btn" onclick="showMcpConfig('generic')">
-                <i class="fas fa-code"></i> Manual Config
+            <button class="mcp-connect-btn" id="btn-generic" onclick="showMcpConfig('generic', this)" style="opacity:.7;">
+                <i class="fas fa-code"></i> Manual / Other
             </button>
         </div>
 
-        <div id="mcp-config-block" style="display:none;">
-            <div style="font-size:.72rem; color:rgba(255,255,255,.35); margin:.8rem 0 .3rem;" id="mcp-config-label"></div>
-            <div class="mcp-code" id="mcp-config-code"></div>
-            <div style="font-size:.73rem; color:rgba(255,255,255,.3); margin-top:.5rem;">
-                <i class="fas fa-circle-info me-1"></i>
-                The vault must be unlocked in Dotward for the AI tool to access secrets.
-                Every request is logged in the MCP Activity tab below.
+        <div id="mcp-connect-msg" style="display:none; margin-top:.7rem; font-size:.8rem; padding:.5rem .8rem; border-radius:7px;"></div>
+
+        <div id="mcp-config-block" style="display:none; margin-top:.9rem;">
+            <div style="font-size:.72rem; color:rgba(255,255,255,.35); margin-bottom:.3rem;">
+                Add this to <span id="mcp-config-label" style="font-family:monospace; color:rgba(255,255,255,.5);"></span>
             </div>
+            <div style="position:relative;">
+                <div class="mcp-code" id="mcp-config-code"></div>
+                <button onclick="copyMcpConfig()" style="position:absolute;top:.5rem;right:.5rem;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);font-size:.68rem;padding:2px 8px;border-radius:5px;cursor:pointer;" id="copy-btn">Copy</button>
+            </div>
+        </div>
+
+        <div style="font-size:.73rem; color:rgba(255,255,255,.3); margin-top:.7rem;">
+            <i class="fas fa-shield-halved me-1" style="color:#818cf8;"></i>
+            Vault must be unlocked. Every <code>get_secret</code> call requires your approval here first.
+        </div>
+
+        <!-- Per-project MCP access -->
+        <div style="margin-top:1.1rem; border-top:1px solid rgba(255,255,255,.06); padding-top:.9rem;">
+            <div style="font-size:.75rem; font-weight:600; color:rgba(255,255,255,.4); margin-bottom:.6rem; text-transform:uppercase; letter-spacing:.06em;">Project Access Control</div>
+            {% for p in projects %}
+            <div class="project-mcp-row" id="proj-row-{{ p.id }}">
+                <span class="project-mcp-name">{{ p.name }}</span>
+                <label class="mcp-toggle" title="{{ 'Disable' if p.mcp_enabled else 'Enable' }} MCP for {{ p.name }}">
+                    <input type="checkbox" {% if p.mcp_enabled %}checked{% endif %} onchange="toggleProjectMcp({{ p.id }}, this)">
+                    <span class="mcp-toggle-slider"></span>
+                </label>
+            </div>
+            {% endfor %}
         </div>
     </div>
 
@@ -177,11 +238,19 @@
 
     <!-- MCP Activity Tab -->
     <div id="tab-mcp" style="display:none;">
+        <!-- Pending confirmations (live-updated by JS) -->
+        <div id="pending-requests-section" style="display:none;">
+            <div class="section-title" style="color:#fbbf24;"><i class="fas fa-clock me-1"></i>Waiting for your approval</div>
+            <div id="pending-requests-list"></div>
+        </div>
+
+        <!-- Access log -->
+        <div class="section-title">Access log</div>
+        <div id="mcp-log-list">
         {% if mcp_logs %}
-            <div class="section-title">Recent AI tool secret requests</div>
             {% for l in mcp_logs %}
             <div class="mcp-log">
-                <span class="mcp-tool">{{ l.tool or 'AI tool' }}</span>
+                <span class="mcp-tool">{{ l.tool or 'mcp' }}</span>
                 <span class="mcp-action">{{ l.action }}</span>
                 <span class="mcp-project">{{ l.project }}</span>
                 <span class="mcp-key">{{ l.key }}</span>
@@ -189,11 +258,12 @@
             </div>
             {% endfor %}
         {% else %}
-            <div class="empty-state">
+            <div class="empty-state" id="mcp-empty">
                 <i class="fas fa-robot"></i>
-                <p>No AI tool requests yet. Connect Cursor or Claude Desktop above to get started.</p>
+                <p>No AI tool requests yet. Connect Claude Desktop above and ask Claude to list your projects.</p>
             </div>
         {% endif %}
+        </div>
     </div>
 
     <!-- Watched Paths Tab -->
@@ -255,50 +325,206 @@ function markEvent(id, action) {
         });
 }
 
-const MCP_CONFIGS = {
-    cursor: {
-        label: '~/.cursor/mcp.json',
-        code: `{
+let _dotwardBin = '/usr/local/bin/dotward';  // updated by _checkMcpStatus()
+
+function _mcpConfigCode(bin) {
+    return `{
   "mcpServers": {
     "dotward": {
-      "command": "dotward",
+      "command": "${bin}",
       "args": ["mcp"]
     }
   }
-}`,
-    },
-    claude: {
-        label: '~/Library/Application Support/Claude/claude_desktop_config.json',
-        code: `{
-  "mcpServers": {
-    "dotward": {
-      "command": "dotward",
-      "args": ["mcp"]
-    }
-  }
-}`,
-    },
-    generic: {
-        label: 'Any MCP-compatible AI tool',
-        code: `// Add to your AI tool's MCP server config:
-{
-  "mcpServers": {
-    "dotward": {
-      "command": "dotward",
-      "args": ["mcp"]
-    }
-  }
+}`;
 }
 
-// Then ask the AI: "Use dotward to get my STRIPE_KEY from project My App"`,
-    },
+const MCP_CONFIGS = {
+    claude:  { label: '~/Library/Application Support/Claude/claude_desktop_config.json' },
+    cursor:  { label: '~/.cursor/mcp.json' },
+    generic: { label: "your AI tool's MCP config file" },
 };
 
-function showMcpConfig(tool) {
+function showMcpConfig(tool, btn) {
     const cfg = MCP_CONFIGS[tool];
     document.getElementById('mcp-config-label').textContent = cfg.label;
-    document.getElementById('mcp-config-code').textContent  = cfg.code;
+    document.getElementById('mcp-config-code').textContent  = _mcpConfigCode(_dotwardBin);
     document.getElementById('mcp-config-block').style.display = '';
+    document.getElementById('copy-btn').textContent = 'Copy';
+    document.querySelectorAll('.mcp-connect-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
 }
+
+function copyMcpConfig() {
+    const code = document.getElementById('mcp-config-code').textContent;
+    navigator.clipboard.writeText(code).then(() => {
+        const btn = document.getElementById('copy-btn');
+        btn.textContent = 'Copied!';
+        btn.style.color = '#4ade80';
+        setTimeout(() => { btn.textContent = 'Copy'; btn.style.color = ''; }, 2000);
+    });
+}
+
+function toggleProjectMcp(projectId, checkbox) {
+    fetch(`/api/projects/${projectId}/mcp-toggle`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            checkbox.checked = data.mcp_enabled;
+        })
+        .catch(() => { checkbox.checked = !checkbox.checked; });
+}
+
+function _renderPendingRequests(reqs) {
+    const section = document.getElementById('pending-requests-section');
+    const list    = document.getElementById('pending-requests-list');
+    if (!reqs.length) { section.style.display = 'none'; return; }
+    section.style.display = '';
+    list.innerHTML = reqs.map(r => `
+        <div class="confirm-card" id="req-${r.id}">
+            <div class="confirm-title"><i class="fas fa-key me-1"></i>${r.tool || 'An AI tool'} wants to read a secret</div>
+            <div class="confirm-detail">
+                Project: <strong>${r.project}</strong> &nbsp;·&nbsp; Key: <strong>${r.key}</strong>
+            </div>
+            <div style="display:flex;gap:.5rem;">
+                <button class="btn-approve" onclick="respondMcp(${r.id},'approve')">
+                    <i class="fas fa-check me-1"></i>Approve
+                </button>
+                <button class="btn-deny" onclick="respondMcp(${r.id},'deny')">
+                    <i class="fas fa-times me-1"></i>Deny
+                </button>
+            </div>
+        </div>`).join('');
+}
+
+function respondMcp(id, action) {
+    fetch(`/api/mcp/requests/${id}/${action}`, { method: 'POST' })
+        .then(() => {
+            const el = document.getElementById('req-' + id);
+            if (el) { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => el.remove(), 300); }
+        });
+}
+
+// ── Live polling ──────────────────────────────────────────────────────────
+let _lastMcpId = {{ (mcp_logs[0].id if mcp_logs else 0) }};
+
+function _pollMcp() {
+    // Poll pending confirmation requests
+    fetch('/api/mcp/requests')
+        .then(r => r.json())
+        .then(reqs => {
+            _renderPendingRequests(reqs);
+            // Update MCP tab badge
+            const mcpTabBtn = document.querySelector('[onclick*="switchTab(\'mcp\'"]');
+            let badge = mcpTabBtn ? mcpTabBtn.querySelector('.tab-count') : null;
+            if (reqs.length > 0) {
+                if (!badge && mcpTabBtn) {
+                    badge = document.createElement('span');
+                    badge.className = 'tab-count';
+                    badge.style.cssText = 'background:rgba(251,191,36,.2);color:#fbbf24;';
+                    mcpTabBtn.appendChild(badge);
+                }
+                if (badge) badge.textContent = reqs.length;
+            } else if (badge) { badge.remove(); }
+        }).catch(() => {});
+
+    // Poll access log
+    fetch('/api/mcp/logs')
+        .then(r => r.json())
+        .then(logs => {
+            if (!logs.length || logs[0].id === _lastMcpId) return;
+            _lastMcpId = logs[0].id;
+            const container = document.getElementById('mcp-log-list');
+            const empty = document.getElementById('mcp-empty');
+            if (empty) empty.remove();
+            container.innerHTML = logs.map(l => `
+                <div class="mcp-log">
+                    <span class="mcp-tool">${l.tool || 'mcp'}</span>
+                    <span class="mcp-action">${l.action}</span>
+                    <span class="mcp-project">${l.project}</span>
+                    <span class="mcp-key">${l.key}</span>
+                    <span class="mcp-time">${new Date(l.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
+                </div>`).join('');
+        }).catch(() => {});
+}
+
+function _pollAlerts() {
+    fetch('/api/watcher/count')
+        .then(r => r.json())
+        .then(data => {
+            const navBadge = document.getElementById('watcher-badge');
+            if (navBadge) {
+                if (data.count > 0) { navBadge.textContent = data.count; navBadge.style.display = ''; }
+                else navBadge.style.display = 'none';
+            }
+        }).catch(() => {});
+}
+
+function connectTool(tool, btn) {
+    const msg = document.getElementById('mcp-connect-msg');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Connecting…';
+    fetch(`/api/mcp/connect/${tool}`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false;
+            if (data.ok) {
+                btn.innerHTML = '<i class="fas fa-check me-1"></i> Connected!';
+                btn.style.background = 'rgba(74,222,128,.15)';
+                btn.style.borderColor = 'rgba(74,222,128,.3)';
+                btn.style.color = '#4ade80';
+                msg.style.display = '';
+                msg.style.background = 'rgba(74,222,128,.08)';
+                msg.style.border = '1px solid rgba(74,222,128,.2)';
+                msg.style.color = '#4ade80';
+                msg.innerHTML = `<i class="fas fa-check-circle me-1"></i>${data.message}`;
+                _checkMcpStatus();
+            } else {
+                btn.innerHTML = '<i class="fas fa-bolt me-1"></i> Connect ' + tool;
+                msg.style.display = '';
+                msg.style.background = 'rgba(231,76,60,.08)';
+                msg.style.border = '1px solid rgba(231,76,60,.2)';
+                msg.style.color = '#f87171';
+                msg.innerHTML = `<i class="fas fa-exclamation-circle me-1"></i>${data.error}`;
+            }
+        }).catch(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-bolt me-1"></i> Connect ' + tool;
+        });
+}
+
+function _checkMcpStatus() {
+    fetch('/api/mcp/status')
+        .then(r => r.json())
+        .then(status => {
+            if (status.dotward_bin) _dotwardBin = status.dotward_bin;
+            const dot  = document.getElementById('mcp-dot');
+            const text = document.getElementById('mcp-status-text');
+            const connected = Object.values(status).some(v => v);
+            const names = Object.entries(status).filter(([,v]) => v).map(([k]) => k === 'claude' ? 'Claude Desktop' : k.charAt(0).toUpperCase() + k.slice(1));
+            if (connected) {
+                dot.className = 'mcp-status-dot connected';
+                text.textContent = names.join(', ') + ' connected';
+                // Update buttons
+                Object.entries(status).forEach(([tool, isConnected]) => {
+                    const btn = document.getElementById('btn-' + tool);
+                    if (btn && isConnected) {
+                        btn.innerHTML = '<i class="fas fa-check me-1"></i> ' + (tool === 'claude' ? 'Claude Desktop' : tool.charAt(0).toUpperCase() + tool.slice(1)) + ' ✓';
+                        btn.style.background = 'rgba(74,222,128,.1)';
+                        btn.style.borderColor = 'rgba(74,222,128,.25)';
+                        btn.style.color = '#4ade80';
+                    }
+                });
+            } else {
+                dot.className = 'mcp-status-dot disconnected';
+                text.textContent = 'Not connected';
+            }
+        }).catch(() => {});
+}
+
+// Check connection status on load
+_checkMcpStatus();
+
+setInterval(_pollMcp,    4000);   // MCP: every 4s
+setInterval(_pollAlerts, 10000);  // Alert badge: every 10s
+_pollMcp(); // immediate first run
 </script>
 {% endblock %}

@@ -69,13 +69,14 @@ def stop() -> None:
 
 def _loop() -> None:
     """Main watcher loop — runs every WATCHER_INTERVAL seconds."""
-    import logging
-    log = logging.getLogger('watcher')
     while _running:
         try:
+            import cli_state
+            unlocked = cli_state.is_unlocked()
+            print(f'[watcher] tick — unlocked={unlocked}', flush=True)
             _scan_all()
         except Exception as e:
-            log.warning(f'[watcher] scan error: {e}')
+            print(f'[watcher] scan error: {e}', flush=True)
         time.sleep(_WATCHER_INTERVAL)
 
 
@@ -86,7 +87,15 @@ def _scan_all() -> None:
 
     # Only scan if vault is unlocked
     if not cli_state.is_unlocked():
+        print('[watcher] vault locked — skipping scan', flush=True)
         return
+
+    paths = _ai_config_paths()
+    print(f'[watcher] scanning {len(paths)} paths...', flush=True)
+    for p in paths:
+        exists = os.path.exists(p)
+        if exists:
+            print(f'[watcher] found: {p}', flush=True)
 
     patterns = _SCAN_PATTERNS + _DEEP_PATTERNS
     entropy_threshold = 4.2
@@ -108,6 +117,7 @@ def _scan_all() -> None:
 
 def _scan_file(filepath: str, patterns, entropy_threshold: float) -> None:
     """Scan a single file and record any new findings."""
+    from dotward_cli import _is_binary_file, _ASSIGN_RE, _entropy
     if _is_binary_file(filepath):
         return
     try:

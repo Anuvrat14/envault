@@ -15,12 +15,27 @@ from flask import Blueprint, jsonify, request
 
 import cli_state
 from crypto import decrypt_value, encrypt_value
-from models import AppConfig, EnvVariable, Project, db
+from models import AppConfig, EnvVariable, McpAccessLog, McpRequest, Project, db
 from risk_engine import analyze as risk_analyze
 
 api_bp = Blueprint('api', __name__, url_prefix='/api/v1')
 
 _VERSION = '1.1.0'
+
+
+# --------------------------------------------------------------------------- #
+# MCP access logger
+# --------------------------------------------------------------------------- #
+
+def _log_mcp(project: str, key: str, action: str) -> None:
+    """Record an MCP tool access. Silently skips on any error."""
+    try:
+        tool = request.headers.get('X-MCP-Tool', 'mcp')
+        entry = McpAccessLog(tool=tool, project=project, key=key, action=action)
+        db.session.add(entry)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
 
 
 # --------------------------------------------------------------------------- #
@@ -105,6 +120,10 @@ def list_vars(project_ref):
     if not project:
         return jsonify({'error': f'Project not found: {project_ref}'}), 404
 
+    if not project.mcp_enabled:
+        return jsonify({'error': f'MCP access disabled for project: {project.name}'}), 403
+
+    _log_mcp(project.name, '*', 'list_keys')
     return jsonify([
         {
             'key':        v.key,
@@ -126,16 +145,39 @@ def get_var(project_ref, key):
     if not project:
         return jsonify({'error': f'Project not found: {project_ref}'}), 404
 
+    if not project.mcp_enabled:
+        return jsonify({'error': f'MCP access disabled for project: {project.name}'}), 403
+
     var = EnvVariable.query.filter_by(project_id=project.id, key=key).first()
     if not var:
         return jsonify({'error': f'Variable not found: {key}'}), 404
 
-    try:
-        value = decrypt_value(var.encrypted_value, enc_key)
-    except Exception:
-        return jsonify({'error': 'Decryption failed'}), 500
+    # Check if there's already an approved request we can use
+    tool = request.headers.get('X-MCP-Tool', 'mcp')
+    req_id = request.args.get('_req')
+    if req_id:
+        mcp_req = McpRequest.query.get(int(req_id))
+        if mcp_req and mcp_req.status == 'approved' \
+                and mcp_req.project == project.name and mcp_req.key == key:
+            # Approved — decrypt and return
+            try:
+                value = decrypt_value(var.encrypted_value, enc_key)
+            except Exception:
+                return jsonify({'error': 'Decryption failed'}), 500
+            _log_mcp(project.name, key, 'get_secret')
+            mcp_req.status = 'used'
+            db.session.commit()
+            return jsonify({'key': key, 'value': value})
+        elif mcp_req and mcp_req.status == 'denied':
+            return jsonify({'error': 'Request denied by user'}), 403
+        elif mcp_req and mcp_req.status == 'pending':
+            return jsonify({'status': 'pending', 'request_id': mcp_req.id}), 202
 
-    return jsonify({'key': key, 'value': value})
+    # No request yet — create one and ask for confirmation
+    mcp_req = McpRequest(tool=tool, project=project.name, key=key, status='pending')
+    db.session.add(mcp_req)
+    db.session.commit()
+    return jsonify({'status': 'pending', 'request_id': mcp_req.id}), 202
 
 
 @api_bp.route('/projects/<project_ref>/env')

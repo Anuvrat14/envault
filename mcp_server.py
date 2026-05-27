@@ -146,10 +146,37 @@ def handle_tools_call(req_id, params):
                 _error(req_id, -32602, 'project and key are required')
                 return
             from urllib.parse import quote
-            data = _api('GET', f'/projects/{quote(project, safe="")}/get/{quote(key, safe="")}')
-            _result(req_id, {
-                'content': [{'type': 'text', 'text': data.get('value', '')}]
-            })
+            import time
+            path = f'/projects/{quote(project, safe="")}/get/{quote(key, safe="")}'
+            # First call — creates pending request
+            data = _api('GET', path)
+            if 'value' in data:
+                # MCP disabled for project or already approved
+                _result(req_id, {'content': [{'type': 'text', 'text': data['value']}]})
+                return
+            if data.get('status') != 'pending':
+                _error(req_id, -32000, data.get('error', 'Unexpected response'))
+                return
+            mcp_req_id = data.get('request_id')
+            # Poll until user approves/denies (max 30s)
+            deadline = time.time() + 30
+            while time.time() < deadline:
+                time.sleep(2)
+                try:
+                    poll = _api('GET', f'{path}?_req={mcp_req_id}')
+                    if poll.get('status') == 'pending':
+                        continue
+                    if 'value' in poll:
+                        _result(req_id, {'content': [{'type': 'text', 'text': poll['value']}]})
+                        return
+                    _error(req_id, -32000, poll.get('error', 'Unknown error'))
+                    return
+                except urllib.error.HTTPError as e:
+                    body = e.read()
+                    msg = json.loads(body).get('error', str(e)) if body else str(e)
+                    _error(req_id, -32000, f'Vault error: {msg}')
+                    return
+            _error(req_id, -32000, 'Timed out — open Dotward → Watcher → MCP Activity to approve.')
 
         elif name == 'list_keys':
             project = args.get('project', '').strip()

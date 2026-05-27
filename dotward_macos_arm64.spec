@@ -22,6 +22,7 @@ datas = [
     (os.path.join(REPO_ROOT, '_version.py'),       '.'),
     (os.path.join(REPO_ROOT, 'watcher_engine.py'), '.'),
     (os.path.join(REPO_ROOT, 'mcp_server.py'),     '.'),
+    (os.path.join(REPO_ROOT, 'dotward_cli.py'),    '.'),
 ] + waitress_datas
 
 hiddenimports = [
@@ -43,7 +44,7 @@ hiddenimports = [
     'cryptography.hazmat.backends.openssl',
     'waitress', 'waitress.server',
     'routes.auth', 'routes.projects', 'routes.api', 'routes.scan', 'routes.watcher',
-    'risk_engine', 'cli_state', 'scan_engine', 'watcher_engine', 'mcp_server',
+    'risk_engine', 'cli_state', 'scan_engine', 'watcher_engine', 'mcp_server', 'dotward_cli',
     'hashlib', 'hmac', 'base64', 'secrets', 'uuid',
     'ssl', 'socket', 'threading',
     'logging', 'logging.handlers',

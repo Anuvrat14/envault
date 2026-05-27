@@ -28,6 +28,10 @@ function syncCLI() {
         ? path.join(process.resourcesPath, 'dotward_cli.py')
         : path.join(__dirname, 'dotward_cli.py');
 
+    const mcpSrc = app.isPackaged
+        ? path.join(process.resourcesPath, 'mcp_server.py')
+        : path.join(__dirname, 'mcp_server.py');
+
     if (!fs.existsSync(cliSrc)) {
         log.warn('[cli] dotward_cli.py not found in resources, skipping sync');
         return;
@@ -44,6 +48,12 @@ function syncCLI() {
             fs.mkdirSync(path.dirname(dest), { recursive: true });
             fs.copyFileSync(cliSrc, dest);
             fs.chmodSync(dest, 0o755);
+            // Also sync mcp_server.py next to the CLI
+            if (fs.existsSync(mcpSrc)) {
+                const mcpDest = path.join(path.dirname(dest), 'mcp_server.py');
+                fs.copyFileSync(mcpSrc, mcpDest);
+                fs.chmodSync(mcpDest, 0o644);
+            }
             log.info(`[cli] Synced CLI → ${dest}`);
 
             // First-time install: notify user about PATH if using fallback

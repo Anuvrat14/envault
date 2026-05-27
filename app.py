@@ -37,6 +37,19 @@ def create_app():
     app.jinja_env.globals['now_utc'] = lambda: datetime.utcnow()
     app.jinja_env.globals['app_version'] = _get_version()
 
+    # Restore cli_state from session after process restart
+    # (Flask session is cookie-based and survives restarts, but in-memory
+    #  _internal_key is lost — re-sync it on the first request that has a session)
+    @app.before_request
+    def _sync_cli_state():
+        import cli_state
+        from flask import session
+        if session.get('enc_key') and not cli_state.is_unlocked():
+            from models import AppConfig
+            config = AppConfig.query.first()
+            if config:
+                cli_state.set_key(config.cli_token or '', session['enc_key'])
+
     # Blueprints
     from routes.auth     import auth_bp
     from routes.projects import projects_bp
@@ -74,6 +87,7 @@ def _migrate_db(app):
         ('env_variables', 'risk_notes',    'TEXT'),
         ('app_config',    'backup_codes',  'TEXT'),
         ('app_config',    'cli_token',     'VARCHAR(128)'),
+        ('projects',      'mcp_enabled',   'BOOLEAN DEFAULT 1'),
     ]
     with db.engine.connect() as conn:
         for table, column, col_type in new_columns:
