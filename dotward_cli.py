@@ -248,6 +248,26 @@ _SKIP_EXTS  = {'.png', '.jpg', '.jpeg', '.gif', '.ico', '.svg', '.woff', '.woff2
                '.eot', '.mp4', '.mp3', '.zip', '.tar', '.gz', '.lock', '.pyc', '.exe', '.dmg'}
 _SKIP_FILES = {'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'Pipfile.lock', 'poetry.lock'}
 
+MAX_FILES_NORMAL = 3000   # cap for standard scan
+ENTROPY_NORMAL   = 4.5
+ENTROPY_DEEP     = 4.2    # catches more secrets, more false positives
+
+# Extra patterns active only in --deep mode
+_DEEP_PATTERNS: list[tuple[re.Pattern, str]] = [
+    (re.compile(r'sk-ant-[a-zA-Z0-9_\-]{90,}'),                                 'Anthropic API Key'),
+    (re.compile(r'hf_[a-zA-Z0-9]{34,}'),                                        'HuggingFace Token'),
+    (re.compile(r'dapi[a-zA-Z0-9]{32}'),                                         'Databricks Token'),
+    (re.compile(r'shp(?:ss|at|ca|pa)_[a-fA-F0-9]{32}'),                         'Shopify Token'),
+    (re.compile(r'SK[a-z0-9]{32}'),                                              'Twilio Auth Token'),
+    (re.compile(r'AC[a-z0-9]{32}'),                                              'Twilio Account SID'),
+    (re.compile(r'AAAA[A-Za-z0-9_\-]{7}:[A-Za-z0-9_\-]{140}'),                  'Firebase FCM Key'),
+    (re.compile(r'[MN][a-zA-Z0-9]{23}\.[a-zA-Z0-9_\-]{6}\.[a-zA-Z0-9_\-]{27}'), 'Discord Bot Token'),
+    (re.compile(r'\d{8,10}:[a-zA-Z0-9_\-]{35}'),                                'Telegram Bot Token'),
+    (re.compile(r'(?i)passwd\s*=\s*[^\s\'\"]{8,}'),                             'Hardcoded Password'),
+    (re.compile(r'(?i)api[_\-]?key\s*[=:]\s*[\'"]?[a-zA-Z0-9_\-]{16,}[\'"]?'), 'Generic API Key'),
+    (re.compile(r'(?i)client[_\-]?secret\s*[=:]\s*[\'"]?[a-zA-Z0-9_\-]{16,}'), 'OAuth Client Secret'),
+]
+
 # Flag .env files being committed (they should never be in a repo)
 _ENV_FILE_RE = re.compile(r'^\.env(\..+)?$')
 
@@ -316,11 +336,12 @@ def _collect_staged_files() -> list[str]:
         _die('git not found — make sure git is installed.')
 
 
-def _collect_all_files(root: str) -> list[str]:
-    """Walk directory tree and return scannable file paths."""
+def _collect_all_files(root: str, max_files: int = 0) -> tuple[list[str], bool]:
+    """Walk directory tree and return (files, truncated).
+    max_files=0 means no cap (deep mode)."""
     files = []
+    truncated = False
     for dirpath, dirnames, filenames in os.walk(root):
-        # Prune skip dirs in-place
         dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
         for fname in filenames:
             if fname in _SKIP_FILES:
@@ -328,7 +349,10 @@ def _collect_all_files(root: str) -> list[str]:
             if Path(fname).suffix.lower() in _SKIP_EXTS:
                 continue
             files.append(os.path.join(dirpath, fname))
-    return files
+            if max_files and len(files) >= max_files:
+                truncated = True
+                return files, truncated
+    return files, truncated
 
 
 def cmd_scan(args: list[str]) -> None:
@@ -338,33 +362,45 @@ def cmd_scan(args: list[str]) -> None:
     Usage:
       dotward scan                 scan staged files (pre-commit mode)
       dotward scan --all           scan entire working tree
+      dotward scan --deep          deep scan: more patterns, lower entropy, no file cap
       dotward scan path/to/file    scan a specific file or directory
     """
     scan_all  = '--all' in args
+    deep      = '--deep' in args
     targets   = [a for a in args if not a.startswith('-')]
 
     RED    = '\033[31m'
     YELLOW = '\033[33m'
     GREEN  = '\033[32m'
+    CYAN   = '\033[36m'
     BOLD   = '\033[1m'
     RESET  = '\033[0m'
 
+    entropy_threshold = ENTROPY_DEEP if deep else ENTROPY_NORMAL
+    patterns = _SCAN_PATTERNS + (_DEEP_PATTERNS if deep else [])
+    max_files = 0 if deep else MAX_FILES_NORMAL
+    truncated = False
+
+    if deep:
+        print(f'{CYAN}{BOLD}⚡ Deep scan mode — {len(patterns)} patterns, entropy ≥ {entropy_threshold}, no file cap{RESET}\n')
+
     if targets:
-        # Explicit path(s)
         files = []
         for t in targets:
             p = Path(t)
             if p.is_dir():
-                files.extend(_collect_all_files(str(p)))
+                f, trunc = _collect_all_files(str(p), max_files)
+                files.extend(f)
+                truncated = truncated or trunc
             elif p.is_file():
                 files.append(str(p))
             else:
                 _die(f'Path not found: {t}')
-    elif scan_all:
-        files = _collect_all_files('.')
+    elif scan_all or deep:
+        files, truncated = _collect_all_files('.', max_files)
     else:
-        # Default: staged files only
         files = _collect_staged_files()
+        truncated = False
         if not files:
             print(f'{GREEN}✓ No staged files to scan.{RESET}')
             return
@@ -380,7 +416,33 @@ def cmd_scan(args: list[str]) -> None:
             continue
 
         scanned += 1
-        findings = _scan_content(content, filepath)
+
+        # Run scan with current mode's patterns and entropy threshold
+        findings = []
+        lines = content.splitlines()
+        if _ENV_FILE_RE.match(Path(filepath).name):
+            findings.append({'line': 0, 'match': filepath, 'reason': '.env file should never be committed'})
+        else:
+            for lineno, line in enumerate(lines, 1):
+                stripped = line.strip()
+                if stripped.startswith(('#', '//', '*')):
+                    continue
+                if 're.compile(' in line or 're.Pattern' in line:
+                    continue
+                for pattern, label in patterns:
+                    m = pattern.search(line)
+                    if m:
+                        findings.append({'line': lineno, 'match': m.group(0)[:60], 'reason': label})
+                        break
+                for assign_re in _ASSIGN_RE:
+                    for m in assign_re.finditer(line):
+                        val = m.group(1)
+                        if _entropy(val) >= entropy_threshold and len(val) >= 20:
+                            if not any(f['line'] == lineno for f in findings):
+                                preview = val[:40] + ('…' if len(val) > 40 else '')
+                                findings.append({'line': lineno, 'match': preview,
+                                    'reason': f'High-entropy value (entropy={_entropy(val):.1f}) — possible secret'})
+                            break
 
         if findings:
             total_findings += len(findings)
@@ -391,9 +453,12 @@ def cmd_scan(args: list[str]) -> None:
                 if hit['match'] and hit['match'] != filepath:
                     print(f'         {RED}→ {hit["match"]}{RESET}')
 
+    if truncated:
+        print(f'\n{YELLOW}⚠ Scan capped at {MAX_FILES_NORMAL} files. Use --deep to scan everything.{RESET}')
+
     print()
     if total_findings == 0:
-        mode = 'staged files' if not scan_all and not targets else f'{scanned} file{"s" if scanned != 1 else ""}'
+        mode = 'staged files' if not scan_all and not targets and not deep else f'{scanned} file{"s" if scanned != 1 else ""}'
         print(f'{GREEN}✓ No secrets found in {mode}.{RESET}')
         sys.exit(0)
     else:
@@ -495,8 +560,10 @@ USAGE = """\
 
 \033[1mSecret scanner\033[0m (standalone — no vault needed):
   dotward scan                  scan staged files before commit
-  dotward scan --all            scan entire working tree
+  dotward scan --all            scan entire working tree (cap: 3,000 files)
+  dotward scan --deep           deep scan: 31 patterns, lower entropy, no cap
   dotward scan <path>           scan a specific file or directory
+  dotward scan --deep <path>    deep scan a specific path
   dotward install-hook          install git pre-commit hook in this repo
 
 \033[1mExamples:\033[0m
