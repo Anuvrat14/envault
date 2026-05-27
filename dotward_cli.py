@@ -243,9 +243,26 @@ _ASSIGN_RE: list[re.Pattern] = [
     re.compile(r"'(?:password|secret|token|api.?key|auth|credential|access.?key)'\s*:\s*'([^']{8,})'", re.IGNORECASE),
 ]
 
-_SKIP_DIRS  = {'.git', 'node_modules', 'venv', '.venv', '__pycache__', 'dist', 'build', '.next', 'vendor', '.tox'}
-_SKIP_EXTS  = {'.png', '.jpg', '.jpeg', '.gif', '.ico', '.svg', '.woff', '.woff2', '.ttf',
-               '.eot', '.mp4', '.mp3', '.zip', '.tar', '.gz', '.lock', '.pyc', '.exe', '.dmg'}
+_SKIP_DIRS  = {
+    '.git', 'node_modules', 'venv', '.venv', '__pycache__', 'dist', 'build',
+    '.next', 'vendor', '.tox',
+    # False-positive sources: git backups, Claude worktrees, compiled output
+    '.git_backup', '.claude', '.mypy_cache', '.pytest_cache', 'coverage',
+}
+_SKIP_EXTS  = {
+    # Images / icons / fonts / media
+    '.png', '.jpg', '.jpeg', '.gif', '.ico', '.svg', '.icns', '.icns',
+    '.woff', '.woff2', '.ttf', '.eot', '.otf',
+    '.mp4', '.mp3', '.wav', '.ogg', '.webm',
+    # Archives / compiled / binary databases
+    '.zip', '.tar', '.gz', '.bz2', '.xz', '.7z',
+    '.pyc', '.pyo', '.pyd', '.so', '.dylib', '.dll', '.exe', '.dmg', '.pkg', '.deb', '.rpm',
+    '.mmdb', '.db', '.sqlite', '.sqlite3',
+    # Lock files and minified JS
+    '.lock', '.min.js', '.min.css', '.map',
+    # PDF / Office docs (binary)
+    '.pdf', '.docx', '.xlsx', '.pptx', '.doc', '.xls',
+}
 _SKIP_FILES = {'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'Pipfile.lock', 'poetry.lock'}
 
 MAX_FILES_NORMAL = 3000   # cap for standard scan
@@ -268,8 +285,24 @@ _DEEP_PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r'(?i)client[_\-]?secret\s*[=:]\s*[\'"]?[a-zA-Z0-9_\-]{16,}'), 'OAuth Client Secret'),
 ]
 
-# Flag .env files being committed (they should never be in a repo)
-_ENV_FILE_RE = re.compile(r'^\.env(\..+)?$')
+# Flag .env files being committed — but NOT example/template/sample files
+_ENV_FILE_RE         = re.compile(r'^\.env(\..+)?$')
+_ENV_ALLOWLIST_RE    = re.compile(r'^\.env\.(example|sample|template|test|ci|stub)$', re.IGNORECASE)
+
+
+def _is_binary_file(filepath: str) -> bool:
+    """Return True if file looks like a binary (non-text) file."""
+    try:
+        with open(filepath, 'rb') as f:
+            chunk = f.read(8192)
+        # NUL bytes are a reliable binary indicator
+        if b'\x00' in chunk:
+            return True
+        # If >30% non-ASCII / non-printable → treat as binary
+        non_text = sum(1 for b in chunk if b < 9 or (13 < b < 32) or b > 126)
+        return non_text / max(len(chunk), 1) > 0.30
+    except (OSError, PermissionError):
+        return False
 
 
 def _entropy(s: str) -> float:
@@ -287,8 +320,9 @@ def _scan_content(content: str, filename: str) -> list[dict]:
     findings = []
     lines = content.splitlines()
 
-    # Flag .env files being staged directly
-    if _ENV_FILE_RE.match(Path(filename).name):
+    # Flag .env files being staged directly (but not .env.example / .env.sample etc.)
+    fname = Path(filename).name
+    if _ENV_FILE_RE.match(fname) and not _ENV_ALLOWLIST_RE.match(fname):
         findings.append({'line': 0, 'match': filename, 'reason': '.env file should never be committed — add it to .gitignore'})
         return findings
 
@@ -409,6 +443,10 @@ def cmd_scan(args: list[str]) -> None:
     scanned = 0
 
     for filepath in files:
+        # Skip binary files (compiled apps, databases, pack files, etc.)
+        if _is_binary_file(filepath):
+            continue
+
         try:
             with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
@@ -420,8 +458,9 @@ def cmd_scan(args: list[str]) -> None:
         # Run scan with current mode's patterns and entropy threshold
         findings = []
         lines = content.splitlines()
-        if _ENV_FILE_RE.match(Path(filepath).name):
-            findings.append({'line': 0, 'match': filepath, 'reason': '.env file should never be committed'})
+        fname = Path(filepath).name
+        if _ENV_FILE_RE.match(fname) and not _ENV_ALLOWLIST_RE.match(fname):
+            findings.append({'line': 0, 'match': filepath, 'reason': '.env file should never be committed — add it to .gitignore'})
         else:
             for lineno, line in enumerate(lines, 1):
                 stripped = line.strip()
