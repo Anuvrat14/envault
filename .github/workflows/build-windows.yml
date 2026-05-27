@@ -36,8 +36,15 @@ jobs:
 
       - name: Build Flask server binary
         run: |
+          $tag = if ("${{ github.event_name }}" -eq "workflow_dispatch") { "${{ github.event.inputs.tag }}" } else { "${{ github.ref_name }}" }
+          $version = $tag.TrimStart('v')
+          # Inject version so the packaged app shows the correct footer version
+          "# Auto-generated at build time by CI — do not edit manually." | Out-File -FilePath _version.py -Encoding utf8
+          "__version__ = '$version'" | Out-File -FilePath _version.py -Append -Encoding utf8
+          Write-Host "Wrote _version.py: $version"
           venv\Scripts\activate
           pyinstaller dotward_windows.spec --noconfirm
+        shell: pwsh
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

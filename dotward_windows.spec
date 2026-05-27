@@ -19,6 +19,7 @@ datas = [
     (os.path.join(REPO_ROOT, 'cli_state.py'),   '.'),
     (os.path.join(REPO_ROOT, 'scan_engine.py'), '.'),
     (os.path.join(REPO_ROOT, 'run.py'),         '.'),
+    (os.path.join(REPO_ROOT, '_version.py'),    '.'),
 ] + waitress_datas
 
 hiddenimports = [

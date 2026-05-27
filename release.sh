@@ -28,6 +28,10 @@ echo ""
 
 # ── Step 1: PyInstaller ────────────────────────────────────────────────────
 echo "  [1/4] Building Flask server binary..."
+# Inject version into _version.py so the packaged app shows the correct version
+echo "# Auto-generated at build time by release.sh — do not edit manually." > _version.py
+echo "__version__ = '$VERSION'" >> _version.py
+echo "        ✓ _version.py → $VERSION"
 source venv/bin/activate
 pyinstaller dotward_macos_arm64.spec --noconfirm --log-level WARN
 echo "        ✓ Binary built"

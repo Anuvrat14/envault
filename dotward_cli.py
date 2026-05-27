@@ -290,6 +290,38 @@ _ENV_FILE_RE         = re.compile(r'^\.env(\..+)?$')
 _ENV_ALLOWLIST_RE    = re.compile(r'^\.env\.(example|sample|template|test|ci|stub)$', re.IGNORECASE)
 
 
+def _load_dotwardignore(root: str) -> set[str]:
+    """
+    Load .dotwardignore from the scan root. Each line is either:
+      path/to/file:lineno   — suppress a specific line
+      path/to/file          — suppress entire file
+      # comment             — ignored
+    Returns a set of 'filepath:lineno' and 'filepath' strings (normalised to abs path).
+    """
+    ignore: set[str] = set()
+    ignore_path = os.path.join(root, '.dotwardignore')
+    if not os.path.exists(ignore_path):
+        return ignore
+    with open(ignore_path) as f:
+        for raw in f:
+            line = raw.strip()
+            if not line or line.startswith('#'):
+                continue
+            # Normalise to absolute path
+            if ':' in line:
+                parts = line.rsplit(':', 1)
+                abs_file = os.path.abspath(os.path.join(root, parts[0]))
+                ignore.add(f'{abs_file}:{parts[1]}')
+            else:
+                ignore.add(os.path.abspath(os.path.join(root, line)))
+    return ignore
+
+
+def _is_ignored(filepath: str, lineno: int, ignore: set[str]) -> bool:
+    abs_path = os.path.abspath(filepath)
+    return abs_path in ignore or f'{abs_path}:{lineno}' in ignore
+
+
 def _is_binary_file(filepath: str) -> bool:
     """Return True if file looks like a binary (non-text) file."""
     try:
@@ -415,6 +447,13 @@ def cmd_scan(args: list[str]) -> None:
     max_files = 0 if deep else MAX_FILES_NORMAL
     truncated = False
 
+    # Determine scan root for .dotwardignore lookup
+    if targets:
+        ignore_root = targets[0] if os.path.isdir(targets[0]) else os.path.dirname(targets[0])
+    else:
+        ignore_root = '.'
+    ignore = _load_dotwardignore(ignore_root)
+
     if deep:
         print(f'{CYAN}{BOLD}⚡ Deep scan mode — {len(patterns)} patterns, entropy ≥ {entropy_threshold}, no file cap{RESET}\n')
 
@@ -459,10 +498,18 @@ def cmd_scan(args: list[str]) -> None:
         findings = []
         lines = content.splitlines()
         fname = Path(filepath).name
+
+        # Skip entire file if ignored
+        if _is_ignored(filepath, 0, ignore):
+            continue
+
         if _ENV_FILE_RE.match(fname) and not _ENV_ALLOWLIST_RE.match(fname):
-            findings.append({'line': 0, 'match': filepath, 'reason': '.env file should never be committed — add it to .gitignore'})
+            if not _is_ignored(filepath, 0, ignore):
+                findings.append({'line': 0, 'match': filepath, 'reason': '.env file should never be committed — add it to .gitignore'})
         else:
             for lineno, line in enumerate(lines, 1):
+                if _is_ignored(filepath, lineno, ignore):
+                    continue
                 stripped = line.strip()
                 if stripped.startswith(('#', '//', '*')):
                     continue

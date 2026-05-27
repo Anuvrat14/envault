@@ -78,14 +78,19 @@ def _migrate_db(app):
 
 
 def _get_version() -> str:
-    """Read version from package.json, fallback to hardcoded string."""
+    """Read version from _version.py (injected at build time), then package.json, then fallback."""
+    try:
+        from _version import __version__
+        return __version__
+    except ImportError:
+        pass
     import json
     try:
         pkg = os.path.join(os.path.dirname(__file__), 'package.json')
         with open(pkg) as f:
-            return json.load(f).get('version', '1.1.0')
+            return json.load(f).get('version', '1.0.0')
     except Exception:
-        return '1.1.0'
+        return '1.0.0'
 
 
 def _get_or_create_secret(data_dir: str) -> str:
