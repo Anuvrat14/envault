@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+{% block title %}Watcher — Dotward{% endblock %}
+
+{% block extra_css %}
+<style>
+.watcher-header { margin-bottom: 1.5rem; }
+.watcher-header h1 { font-size: 1.5rem; font-weight: 700; margin: 0; }
+.watcher-header p  { font-size: .82rem; color: rgba(255,255,255,.4); margin: .25rem 0 0; }
+
+.watcher-tabs { display: flex; gap: .5rem; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,.08); padding-bottom: .5rem; }
+.watcher-tab  { background: none; border: none; color: rgba(255,255,255,.4); font-size: .82rem; font-weight: 500; padding: .4rem .9rem; border-radius: 6px; cursor: pointer; transition: all .15s; }
+.watcher-tab.active, .watcher-tab:hover { background: rgba(255,255,255,.07); color: rgba(255,255,255,.85); }
+.watcher-tab .tab-count { background: rgba(231,76,60,.25); color: #e74c3c; border-radius: 10px; padding: 1px 6px; font-size: .68rem; margin-left: .3rem; }
+
+.event-card { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07); border-radius: 10px; padding: 1rem 1.1rem; margin-bottom: .6rem; transition: border-color .15s; }
+.event-card:hover { border-color: rgba(255,255,255,.13); }
+.event-card.matched { border-left: 3px solid #e74c3c; }
+.event-card.dismissed { opacity: .45; }
+.event-card.fixed { border-left: 3px solid #1e7e4e; opacity: .6; }
+
+.event-path { font-size: .78rem; font-family: monospace; color: rgba(255,255,255,.7); word-break: break-all; }
+.event-line { font-size: .72rem; color: rgba(255,255,255,.3); margin-left: .5rem; }
+.event-reason { font-size: .8rem; font-weight: 600; color: #e8a838; margin: .3rem 0 .2rem; }
+.event-match { font-size: .72rem; font-family: monospace; color: rgba(231,76,60,.8); background: rgba(231,76,60,.08); padding: 2px 6px; border-radius: 4px; word-break: break-all; }
+.event-vault-match { font-size: .75rem; color: #e74c3c; font-weight: 600; margin-top: .3rem; }
+.event-vault-match i { margin-right: .3rem; }
+.event-actions { display: flex; gap: .5rem; margin-top: .7rem; }
+.btn-fix     { background: rgba(30,126,78,.15); border: 1px solid rgba(30,126,78,.3); color: #4ade80; font-size: .75rem; padding: .25rem .7rem; border-radius: 6px; cursor: pointer; transition: all .15s; }
+.btn-fix:hover { background: rgba(30,126,78,.3); }
+.btn-dismiss { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); color: rgba(255,255,255,.4); font-size: .75rem; padding: .25rem .7rem; border-radius: 6px; cursor: pointer; transition: all .15s; }
+.btn-dismiss:hover { background: rgba(255,255,255,.1); color: rgba(255,255,255,.7); }
+.event-time  { font-size: .68rem; color: rgba(255,255,255,.25); float: right; }
+
+.mcp-log { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); border-radius: 8px; padding: .65rem 1rem; margin-bottom: .4rem; display: flex; align-items: center; gap: .8rem; }
+.mcp-tool    { font-size: .72rem; font-weight: 600; color: #818cf8; background: rgba(129,140,248,.1); padding: 2px 7px; border-radius: 10px; white-space: nowrap; }
+.mcp-action  { font-size: .75rem; color: rgba(255,255,255,.5); min-width: 90px; }
+.mcp-project { font-size: .78rem; color: rgba(255,255,255,.7); font-weight: 500; }
+.mcp-key     { font-size: .75rem; font-family: monospace; color: rgba(255,255,255,.45); }
+.mcp-time    { font-size: .68rem; color: rgba(255,255,255,.25); margin-left: auto; white-space: nowrap; }
+
+.empty-state { text-align: center; padding: 3rem 1rem; color: rgba(255,255,255,.25); }
+.empty-state i { font-size: 2rem; margin-bottom: .75rem; display: block; }
+.empty-state p { font-size: .85rem; margin: 0; }
+
+.watched-paths { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07); border-radius: 10px; padding: 1rem 1.2rem; margin-bottom: 1.5rem; }
+.watched-paths h6 { font-size: .8rem; font-weight: 600; color: rgba(255,255,255,.5); margin-bottom: .6rem; text-transform: uppercase; letter-spacing: .06em; }
+.path-item { font-size: .75rem; font-family: monospace; color: rgba(255,255,255,.45); padding: .2rem 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+.path-item:last-child { border-bottom: none; }
+.path-item .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: .5rem; }
+.path-item .dot.active { background: #4ade80; }
+.path-item .dot.inactive { background: rgba(255,255,255,.2); }
+
+.section-title { font-size: .82rem; font-weight: 600; color: rgba(255,255,255,.5); text-transform: uppercase; letter-spacing: .07em; margin: 1.2rem 0 .75rem; }
+
+/* MCP setup card */
+.mcp-setup-card { background: rgba(129,140,248,.06); border: 1px solid rgba(129,140,248,.15); border-radius: 12px; padding: 1.2rem; margin-bottom: 1.5rem; }
+.mcp-setup-card h5 { font-size: .95rem; font-weight: 700; margin-bottom: .4rem; }
+.mcp-setup-card p  { font-size: .8rem; color: rgba(255,255,255,.5); margin-bottom: .9rem; }
+.mcp-connect-btn { background: rgba(129,140,248,.15); border: 1px solid rgba(129,140,248,.3); color: #818cf8; font-size: .8rem; padding: .4rem .9rem; border-radius: 7px; cursor: pointer; transition: all .15s; display: inline-flex; align-items: center; gap: .4rem; }
+.mcp-connect-btn:hover { background: rgba(129,140,248,.25); }
+.mcp-code { background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.08); border-radius: 7px; padding: .7rem 1rem; font-size: .72rem; font-family: monospace; color: rgba(255,255,255,.6); white-space: pre; overflow-x: auto; margin-top: .7rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem;">
+
+    <div class="watcher-header">
+        <h1><i class="fas fa-tower-broadcast me-2" style="color:#818cf8;"></i>Watcher</h1>
+        <p>Monitors AI tool configs and common paths for secrets that belong in your vault.</p>
+    </div>
+
+    <!-- MCP Setup Card -->
+    <div class="mcp-setup-card">
+        <h5><i class="fas fa-robot me-2" style="color:#818cf8;"></i>AI Tool Integration (MCP)</h5>
+        <p>Let Cursor, Claude Desktop, and other AI tools read secrets directly from your vault — no plaintext in config files.</p>
+
+        <div style="display:flex; gap:.6rem; flex-wrap:wrap;">
+            <button class="mcp-connect-btn" onclick="showMcpConfig('cursor')">
+                <i class="fas fa-plug"></i> Connect Cursor
+            </button>
+            <button class="mcp-connect-btn" onclick="showMcpConfig('claude')">
+                <i class="fas fa-plug"></i> Connect Claude Desktop
+            </button>
+            <button class="mcp-connect-btn" onclick="showMcpConfig('generic')">
+                <i class="fas fa-code"></i> Manual Config
+            </button>
+        </div>
+
+        <div id="mcp-config-block" style="display:none;">
+            <div style="font-size:.72rem; color:rgba(255,255,255,.35); margin:.8rem 0 .3rem;" id="mcp-config-label"></div>
+            <div class="mcp-code" id="mcp-config-code"></div>
+            <div style="font-size:.73rem; color:rgba(255,255,255,.3); margin-top:.5rem;">
+                <i class="fas fa-circle-info me-1"></i>
+                The vault must be unlocked in Dotward for the AI tool to access secrets.
+                Every request is logged in the MCP Activity tab below.
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="watcher-tabs">
+        <button class="watcher-tab active" onclick="switchTab('alerts', this)">
+            <i class="fas fa-triangle-exclamation me-1"></i>Alerts
+            {% if open_events %}
+            <span class="tab-count">{{ open_events|length }}</span>
+            {% endif %}
+        </button>
+        <button class="watcher-tab" onclick="switchTab('history', this)">
+            <i class="fas fa-clock-rotate-left me-1"></i>History
+        </button>
+        <button class="watcher-tab" onclick="switchTab('mcp', this)">
+            <i class="fas fa-robot me-1"></i>MCP Activity
+            {% if mcp_logs %}
+            <span class="tab-count" style="background:rgba(129,140,248,.2); color:#818cf8;">{{ mcp_logs|length }}</span>
+            {% endif %}
+        </button>
+        <button class="watcher-tab" onclick="switchTab('paths', this)">
+            <i class="fas fa-folder-open me-1"></i>Watched Paths
+        </button>
+    </div>
+
+    <!-- Alerts Tab -->
+    <div id="tab-alerts">
+        {% if open_events %}
+            {% for e in open_events %}
+            <div class="event-card {% if e.matched_key %}matched{% endif %}" id="event-{{ e.id }}">
+                <span class="event-time">{{ e.created_at.strftime('%b %d, %H:%M') }}</span>
+                <div class="event-path">{{ e.filepath }}<span class="event-line">{% if e.line %}line {{ e.line }}{% endif %}</span></div>
+                <div class="event-reason"><i class="fas fa-triangle-exclamation me-1"></i>{{ e.reason }}</div>
+                {% if e.match %}
+                <div class="event-match">→ {{ e.match[:60] }}{% if e.match|length > 60 %}…{% endif %}</div>
+                {% endif %}
+                {% if e.matched_key %}
+                <div class="event-vault-match">
+                    <i class="fas fa-vault"></i>Matches <strong>{{ e.matched_key }}</strong> in project <strong>{{ e.matched_project }}</strong> — this secret is exposed outside the vault
+                </div>
+                {% endif %}
+                <div class="event-actions">
+                    <button class="btn-fix" onclick="markEvent({{ e.id }}, 'fix')">
+                        <i class="fas fa-check me-1"></i>Mark Fixed
+                    </button>
+                    <button class="btn-dismiss" onclick="markEvent({{ e.id }}, 'dismiss')">
+                        Dismiss
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-shield-halved" style="color:#4ade80;"></i>
+                <p>No exposed secrets detected in monitored paths.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- History Tab -->
+    <div id="tab-history" style="display:none;">
+        {% if fixed_events %}
+            {% for e in fixed_events %}
+            <div class="event-card {{ e.status }}">
+                <span class="event-time">{{ e.created_at.strftime('%b %d, %H:%M') }}</span>
+                <div class="event-path">{{ e.filepath }}<span class="event-line">{% if e.line %}line {{ e.line }}{% endif %}</span></div>
+                <div class="event-reason" style="color:rgba(255,255,255,.4);">{{ e.reason }}</div>
+                <div style="font-size:.72rem; color:rgba(255,255,255,.3); margin-top:.3rem;">
+                    Status: <span style="color:{% if e.status == 'fixed' %}#4ade80{% else %}rgba(255,255,255,.3){% endif %};">{{ e.status }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-clock-rotate-left"></i>
+                <p>No resolved alerts yet.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- MCP Activity Tab -->
+    <div id="tab-mcp" style="display:none;">
+        {% if mcp_logs %}
+            <div class="section-title">Recent AI tool secret requests</div>
+            {% for l in mcp_logs %}
+            <div class="mcp-log">
+                <span class="mcp-tool">{{ l.tool or 'AI tool' }}</span>
+                <span class="mcp-action">{{ l.action }}</span>
+                <span class="mcp-project">{{ l.project }}</span>
+                <span class="mcp-key">{{ l.key }}</span>
+                <span class="mcp-time">{{ l.created_at.strftime('%b %d, %H:%M') }}</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-robot"></i>
+                <p>No AI tool requests yet. Connect Cursor or Claude Desktop above to get started.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Watched Paths Tab -->
+    <div id="tab-paths" style="display:none;">
+        <div class="watched-paths">
+            <h6>AI Tool Config Files</h6>
+            {% set ai_paths = [
+                ('~/.cursor/mcp.json', 'Cursor MCP'),
+                ('~/Library/Application Support/Claude/claude_desktop_config.json', 'Claude Desktop'),
+                ('~/.continue/config.json', 'Continue.dev'),
+                ('~/.codeium/config.json', 'Codeium / Windsurf'),
+                ('~/.config/github-copilot/hosts.json', 'GitHub Copilot'),
+                ('~/.openai/credentials', 'OpenAI CLI'),
+            ] %}
+            {% for path, label in ai_paths %}
+            <div class="path-item">
+                <span class="dot active"></span>
+                <span style="color:rgba(255,255,255,.6);">{{ label }}</span>
+                <span style="margin-left:.5rem;">{{ path }}</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="watched-paths">
+            <h6>Common Development Directories (`.env` files only)</h6>
+            {% set dev_paths = ['~/Desktop', '~/Documents', '~/Projects', '~/Developer', '~/code', '~/dev', '~/workspace'] %}
+            {% for path in dev_paths %}
+            <div class="path-item">
+                <span class="dot active"></span>{{ path }}
+            </div>
+            {% endfor %}
+        </div>
+
+        <div style="font-size:.75rem; color:rgba(255,255,255,.25); margin-top:.75rem;">
+            <i class="fas fa-circle-info me-1"></i>
+            Scans run every 30 seconds while the vault is unlocked. Binary files are automatically skipped.
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function switchTab(name, btn) {
+    ['alerts','history','mcp','paths'].forEach(t => {
+        document.getElementById('tab-' + t).style.display = t === name ? '' : 'none';
+    });
+    document.querySelectorAll('.watcher-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+function markEvent(id, action) {
+    fetch(`/api/watcher/events/${id}/${action}`, { method: 'POST' })
+        .then(() => {
+            const el = document.getElementById('event-' + id);
+            if (el) el.style.transition = 'opacity .3s', el.style.opacity = '0',
+                setTimeout(() => el.remove(), 300);
+        });
+}
+
+const MCP_CONFIGS = {
+    cursor: {
+        label: '~/.cursor/mcp.json',
+        code: `{
+  "mcpServers": {
+    "dotward": {
+      "command": "dotward",
+      "args": ["mcp"]
+    }
+  }
+}`,
+    },
+    claude: {
+        label: '~/Library/Application Support/Claude/claude_desktop_config.json',
+        code: `{
+  "mcpServers": {
+    "dotward": {
+      "command": "dotward",
+      "args": ["mcp"]
+    }
+  }
+}`,
+    },
+    generic: {
+        label: 'Any MCP-compatible AI tool',
+        code: `// Add to your AI tool's MCP server config:
+{
+  "mcpServers": {
+    "dotward": {
+      "command": "dotward",
+      "args": ["mcp"]
+    }
+  }
+}
+
+// Then ask the AI: "Use dotward to get my STRIPE_KEY from project My App"`,
+    },
+};
+
+function showMcpConfig(tool) {
+    const cfg = MCP_CONFIGS[tool];
+    document.getElementById('mcp-config-label').textContent = cfg.label;
+    document.getElementById('mcp-config-code').textContent  = cfg.code;
+    document.getElementById('mcp-config-block').style.display = '';
+}
+</script>
+{% endblock %}

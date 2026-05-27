@@ -636,6 +636,33 @@ fi
     print(f'  To bypass (emergency only): git commit --no-verify')
 
 
+def cmd_mcp(_args: list[str]) -> None:
+    """
+    Start Dotward as an MCP server over stdio.
+    Used by AI tools (Cursor, Claude Desktop) to securely fetch secrets.
+
+    Add to your AI tool's MCP config:
+      {
+        "mcpServers": {
+          "dotward": { "command": "dotward", "args": ["mcp"] }
+        }
+      }
+    """
+    try:
+        import mcp_server
+        mcp_server.run()
+    except ImportError:
+        # Fallback: look for mcp_server.py next to this script
+        import importlib.util, os
+        spec_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mcp_server.py')
+        if not os.path.exists(spec_path):
+            _die('mcp_server.py not found. Make sure Dotward is properly installed.')
+        spec = importlib.util.spec_from_file_location('mcp_server', spec_path)
+        mod  = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mod.run()
+
+
 # --------------------------------------------------------------------------- #
 # Dispatch
 # --------------------------------------------------------------------------- #
@@ -650,6 +677,7 @@ COMMANDS: dict[str, tuple] = {
     'inject':       (cmd_inject,       'Run a command with vars injected'),
     'scan':         (cmd_scan,         'Scan for hardcoded secrets (no vault needed)'),
     'install-hook': (cmd_install_hook, 'Install git pre-commit hook for this repo'),
+    'mcp':          (cmd_mcp,          'Start MCP server for AI tools (Cursor, Claude Desktop)'),
 }
 
 USAGE = """\

@@ -42,16 +42,23 @@ def create_app():
     from routes.projects import projects_bp
     from routes.api      import api_bp
     from routes.scan     import scan_bp
+    from routes.watcher  import watcher_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(projects_bp)
     app.register_blueprint(api_bp)
     app.register_blueprint(scan_bp)
-    csrf.exempt(api_bp)   # API uses token auth, not CSRF cookies
+    app.register_blueprint(watcher_bp)
+    csrf.exempt(api_bp)      # API uses token auth, not CSRF cookies
+    csrf.exempt(watcher_bp)  # Watcher API uses session auth
 
     # Create tables + migrate existing DBs
     with app.app_context():
         db.create_all()
         _migrate_db(app)
+
+    # Start AI config file watcher in background
+    import watcher_engine
+    watcher_engine.start(app)
 
     return app
 

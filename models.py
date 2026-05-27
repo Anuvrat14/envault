@@ -71,3 +71,32 @@ class EnvVariable(db.Model):
 
     def __repr__(self):
         return f'<EnvVariable {self.key}>'
+
+
+class WatcherEvent(db.Model):
+    """A secret detected in an AI config file or watched path."""
+    __tablename__ = 'watcher_events'
+
+    id           = db.Column(db.Integer, primary_key=True)
+    filepath     = db.Column(db.String(500), nullable=False)   # file where secret was found
+    line         = db.Column(db.Integer, nullable=True)
+    reason       = db.Column(db.String(200), nullable=False)   # what kind of secret
+    match        = db.Column(db.String(100), nullable=True)    # redacted preview
+    # If the secret matches a vault entry
+    matched_project = db.Column(db.String(100), nullable=True)
+    matched_key     = db.Column(db.String(200), nullable=True)
+    # State
+    status       = db.Column(db.String(20), default='open')    # open / dismissed / fixed
+    created_at   = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class McpAccessLog(db.Model):
+    """Log of every secret requested via the MCP server."""
+    __tablename__ = 'mcp_access_log'
+
+    id          = db.Column(db.Integer, primary_key=True)
+    tool        = db.Column(db.String(100), nullable=True)    # e.g. "cursor", "claude"
+    project     = db.Column(db.String(100), nullable=False)
+    key         = db.Column(db.String(200), nullable=False)
+    action      = db.Column(db.String(50), nullable=False)    # get_secret / list_projects / inject_env
+    created_at  = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
