@@ -430,6 +430,64 @@ DATABASE_URL=postgres://...</span><br>
         </div>
     </div>
 
+    <!-- .dotwardignore -->
+    <div class="docs-section">
+        <div class="docs-section-title">
+            <i class="fas fa-filter"></i> Suppressing False Positives — <code class="inline-code">.dotwardignore</code>
+        </div>
+
+        <p style="font-size:.8rem; color:rgba(255,255,255,.45); margin-bottom:1rem; line-height:1.6;">
+            Create a <code class="inline-code">.dotwardignore</code> file in the root of any project to silence findings
+            that you've reviewed and confirmed are safe. The scanner reads it automatically — no flags needed.
+        </p>
+
+        <h6 style="font-size:.85rem; font-weight:600; margin-bottom:.6rem; color:rgba(255,255,255,.75);">Format</h6>
+
+        <div class="cmd-block mb-3">
+            <div style="font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; color:rgba(255,255,255,.3); margin-bottom:.5rem;">.dotwardignore</div>
+            <div class="cmd-example">
+                <span class="cmt"># Suppress a specific line</span><br>
+                <span class="val">app/routes.py:35</span><br>
+                <br>
+                <span class="cmt"># Suppress an entire file</span><br>
+                <span class="val">scripts/release.sh</span><br>
+                <br>
+                <span class="cmt"># Comments and blank lines are ignored</span>
+            </div>
+        </div>
+
+        <h6 style="font-size:.85rem; font-weight:600; margin-bottom:.6rem; color:rgba(255,255,255,.75);">Example workflow</h6>
+
+        <div class="cmd-block mb-3">
+            <div class="cmd-example">
+                <span class="cmt"># Scan your project — 3 false positives flagged</span><br>
+                <span class="prompt">$ </span><span class="val">dotward scan --deep ./my-project</span><br>
+                <br>
+                <span class="cmt"># Review them, confirm safe, add to ignore file</span><br>
+                <span class="prompt">$ </span><span class="kw">echo</span> <span class="val">"app/routes.py:35"</span> >> my-project/.dotwardignore<br>
+                <span class="prompt">$ </span><span class="kw">echo</span> <span class="val">"app/routes.py:36"</span> >> my-project/.dotwardignore<br>
+                <br>
+                <span class="cmt"># Clean scan</span><br>
+                <span class="prompt">$ </span><span class="val">dotward scan --deep ./my-project</span><br>
+                <span style="color:#1e7e4e;">✓ No secrets found in 214 files.</span>
+            </div>
+        </div>
+
+        <div class="notice warning">
+            <i class="fas fa-triangle-exclamation"></i>
+            <span>
+                Only suppress findings you've <strong style="color:rgba(255,255,255,.7);">manually reviewed</strong>.
+                Adding real secrets to <code class="inline-code">.dotwardignore</code> doesn't make them safe —
+                it just stops the scanner from warning you about them.
+            </span>
+        </div>
+
+        <p style="font-size:.78rem; color:rgba(255,255,255,.35); margin-top:.75rem;">
+            Commit <code class="inline-code">.dotwardignore</code> to your repo so the whole team shares the same suppressions.
+            The file itself contains no secrets — only file paths and line numbers.
+        </p>
+    </div>
+
     <!-- Environment Variables -->
     <div class="docs-section">
         <div class="docs-section-title">
