@@ -12,7 +12,7 @@ watcher_bp = Blueprint('watcher', __name__)
 
 
 def _require_unlock():
-    if not session.get('unlocked'):
+    if not session.get('enc_key'):
         return jsonify({'error': 'Vault locked'}), 403
     return None
 
@@ -21,9 +21,9 @@ def _require_unlock():
 
 @watcher_bp.route('/watcher')
 def watcher_page():
-    if not session.get('unlocked'):
+    if not session.get('enc_key'):
         from flask import redirect, url_for
-        return redirect(url_for('auth.unlock'))
+        return redirect(url_for('projects.dashboard'))
     open_events  = WatcherEvent.query.filter_by(status='open').order_by(WatcherEvent.created_at.desc()).limit(100).all()
     fixed_events = WatcherEvent.query.filter(WatcherEvent.status != 'open').order_by(WatcherEvent.created_at.desc()).limit(50).all()
     mcp_logs     = McpAccessLog.query.order_by(McpAccessLog.created_at.desc()).limit(50).all()
