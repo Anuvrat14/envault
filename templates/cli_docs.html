@@ -378,6 +378,101 @@ DATABASE_URL=postgres://...</span><br>
                 <span class="prompt">$ </span><span class="kw">dotward</span> inject "My App" -- docker compose up
             </div>
         </div>
+
+        <!-- scan -->
+        <div class="cmd-block">
+            <div class="cmd-signature">dotward <strong>scan</strong> [path] [--all] [--deep]</div>
+            <div class="cmd-desc">
+                Scan for hardcoded secrets. Works standalone — no vault or token needed.
+                In pre-commit mode (no flags), scans only staged files and asks before blocking.
+            </div>
+            <div class="cmd-example">
+                <span class="cmt"># Scan staged files only (pre-commit)</span><br>
+                <span class="prompt">$ </span><span class="kw">dotward</span> scan<br>
+                <br>
+                <span class="cmt"># Scan entire working tree</span><br>
+                <span class="prompt">$ </span><span class="kw">dotward</span> scan --all<br>
+                <br>
+                <span class="cmt"># Deep scan a specific path (31 patterns, lower entropy)</span><br>
+                <span class="prompt">$ </span><span class="kw">dotward</span> scan --deep ~/my-project
+            </div>
+        </div>
+
+        <!-- install-hook -->
+        <div class="cmd-block">
+            <div class="cmd-signature">dotward <strong>install-hook</strong></div>
+            <div class="cmd-desc">
+                Install a git pre-commit hook in the current repo. Runs <code class="inline-code">dotward scan</code>
+                automatically before every commit.
+            </div>
+            <div class="cmd-example">
+                <span class="prompt">$ </span><span class="kw">dotward</span> install-hook<br>
+                <span class="val">✓ Pre-commit hook installed: .git/hooks/pre-commit</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pre-commit Hook -->
+    <div class="docs-section">
+        <div class="docs-section-title">
+            <i class="fas fa-shield-halved"></i> Pre-commit Hook
+        </div>
+
+        <p style="font-size:.8rem; color:rgba(255,255,255,.45); margin-bottom:1rem; line-height:1.6;">
+            Once installed, <code class="inline-code">dotward scan</code> runs automatically before every commit.
+            It only scans the files you're actually staging — not your whole project — so it's fast.
+        </p>
+
+        <h6 style="font-size:.85rem; font-weight:600; margin-bottom:.6rem; color:rgba(255,255,255,.75);">When a finding is detected</h6>
+        <p style="font-size:.8rem; color:rgba(255,255,255,.45); margin-bottom:.75rem; line-height:1.6;">
+            The scanner shows what it found, then asks whether you want to proceed.
+            A false positive never silently blocks your work.
+        </p>
+
+        <div class="cmd-block mb-3">
+            <div class="cmd-example">
+<span style="color:#e05c5c;">✗ config/settings.py</span><br>
+<span style="color:#b7600a;">  line 12</span>  Stripe Live Secret Key<br>
+<span style="color:#e05c5c;">           → sk_live_abc123xyz...</span><br>
+<br>
+<span style="color:#b7600a;">✗ 1 potential secret found.</span><br>
+  To silence a false positive: add the line to .dotwardignore<br>
+<br>
+<span style="color:#b7600a;">Commit anyway? [y/N]</span> <span style="color:rgba(255,255,255,.5);">_</span>
+            </div>
+        </div>
+
+        <table class="flag-table mb-3">
+            <thead>
+                <tr><th>Answer</th><th>Behaviour</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code class="inline-code">y</code></td>
+                    <td>Commit proceeds. A warning is printed but nothing is blocked.</td>
+                </tr>
+                <tr>
+                    <td><code class="inline-code">N</code> (or Enter)</td>
+                    <td>Commit is blocked. Fix the issue or add to <code class="inline-code">.dotwardignore</code>.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="notice warning">
+            <i class="fas fa-triangle-exclamation"></i>
+            <span>
+                <strong style="color:rgba(255,255,255,.7);">--all and --deep always hard-block.</strong>
+                The interactive prompt only appears in pre-commit mode (staged files scan).
+                Deliberate audit scans never ask — they exit 1 so you're forced to review.
+            </span>
+        </div>
+
+        <h6 style="font-size:.85rem; font-weight:600; margin:.9rem 0 .6rem; color:rgba(255,255,255,.75);">Emergency bypass</h6>
+        <div class="cmd-block">
+            <div class="cmd-example">
+                <span class="prompt">$ </span><span class="kw">git commit</span> --no-verify -m "your message"
+            </div>
+        </div>
     </div>
 
     <!-- Shell & CI Integration -->

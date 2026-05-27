@@ -548,9 +548,29 @@ def cmd_scan(args: list[str]) -> None:
         print(f'{GREEN}✓ No secrets found in {mode}.{RESET}')
         sys.exit(0)
     else:
-        print(f'{RED}{BOLD}✗ {total_findings} potential secret{"s" if total_findings != 1 else ""} found — commit blocked.{RESET}')
-        print(f'  Fix the issues above before committing.')
-        print(f'  If a finding is a false positive, add the line to .dotwardignore\n')
+        print(f'{RED}{BOLD}✗ {total_findings} potential secret{"s" if total_findings != 1 else ""} found.{RESET}')
+        print(f'  To silence a false positive: add the line to .dotwardignore')
+
+        # In pre-commit mode (staged scan, not --all / --deep / explicit path),
+        # offer an interactive "commit anyway" prompt. --all and --deep are
+        # deliberate audits so they always hard-block.
+        is_precommit_mode = not scan_all and not deep and not targets
+        if is_precommit_mode:
+            # Git hooks run with stdin=/dev/null — open /dev/tty directly
+            # so we can still read from the terminal.
+            try:
+                tty = open('/dev/tty', 'r')
+                print(f'\n{YELLOW}Commit anyway? [y/N] {RESET}', end='', flush=True)
+                answer = tty.readline().strip().lower()
+                tty.close()
+                if answer == 'y':
+                    print(f'{YELLOW}⚠ Proceeding with commit despite findings.{RESET}\n')
+                    sys.exit(0)
+            except OSError:
+                # No TTY available (CI / piped) — hard block
+                pass
+
+        print()
         sys.exit(1)
 
 
