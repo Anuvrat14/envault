@@ -135,21 +135,34 @@ def api_mcp_toggle(project_id):
     return jsonify({'ok': True, 'mcp_enabled': p.mcp_enabled})
 
 
-def _get_dotward_bin():
-    """Return the dotward binary path, platform-aware."""
+def _get_mcp_entry():
+    """Return {'command': ..., 'args': [...]} for the MCP server, platform-aware."""
     home = os.path.expanduser('~')
     if sys.platform == 'win32':
-        candidates = [
-            os.path.join(home, '.local', 'bin', 'dotward.exe'),
-            os.path.join(home, 'AppData', 'Local', 'Programs', 'dotward', 'dotward.exe'),
-            os.path.join(home, '.dotward', 'bin', 'dotward.exe'),
+        # On Windows the Electron app itself is dotward.exe — we can't use it as MCP server.
+        # Instead, run mcp_server.py directly with Python.
+        mcp_script_candidates = [
+            os.path.join(home, '.local', 'bin', 'mcp_server.py'),
         ]
+        mcp_script = next((p for p in mcp_script_candidates if os.path.exists(p)), mcp_script_candidates[0])
+        python_bin = shutil.which('python') or shutil.which('python3') or 'python'
+        return {'command': python_bin, 'args': [mcp_script]}
     else:
         candidates = [
             '/usr/local/bin/dotward',
             os.path.join(home, '.dotward', 'bin', 'dotward'),
         ]
-    return next((p for p in candidates if os.path.exists(p)), candidates[0])
+        dotward_bin = next((p for p in candidates if os.path.exists(p)), candidates[0])
+        return {'command': dotward_bin, 'args': ['mcp']}
+
+
+def _get_dotward_bin():
+    """Return the dotward binary path (macOS/Linux) or mcp_server.py path (Windows)."""
+    entry = _get_mcp_entry()
+    # For status display: return the meaningful path
+    if sys.platform == 'win32':
+        return entry['args'][0] if entry['args'] else entry['command']
+    return entry['command']
 
 
 def _find_claude_cli():
@@ -198,7 +211,7 @@ def api_mcp_connect(tool):
     err = _require_unlock()
     if err: return err
 
-    dotward_bin = _get_dotward_bin()
+    mcp_entry   = _get_mcp_entry()
     CONFIG_PATHS = _get_config_paths()
 
     if tool not in CONFIG_PATHS:
@@ -213,10 +226,9 @@ def api_mcp_connect(tool):
             kwargs = dict(capture_output=True, text=True, timeout=15)
             if sys.platform == 'win32':
                 kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
-            result = subprocess.run(
-                [claude_bin, 'mcp', 'add', 'dotward', '-s', 'user', '--', dotward_bin, 'mcp'],
-                **kwargs
-            )
+            cmd = [claude_bin, 'mcp', 'add', 'dotward', '-s', 'user',
+                   '--', mcp_entry['command']] + mcp_entry['args']
+            result = subprocess.run(cmd, **kwargs)
             if result.returncode == 0:
                 return jsonify({'ok': True,
                                 'message': 'Connected! Run claude mcp list to verify, then restart Claude Code.'})
@@ -230,11 +242,6 @@ def api_mcp_connect(tool):
             return jsonify({'error': str(e)}), 500
 
     # ── All other tools: write JSON config directly ────────────────────────
-    dotward_entry = {
-        'command': dotward_bin,
-        'args': ['mcp']
-    }
-
     config_path = CONFIG_PATHS[tool]
     os.makedirs(os.path.dirname(config_path), exist_ok=True)
 
@@ -248,7 +255,7 @@ def api_mcp_connect(tool):
 
     if 'mcpServers' not in config:
         config['mcpServers'] = {}
-    config['mcpServers']['dotward'] = dotward_entry
+    config['mcpServers']['dotward'] = mcp_entry
 
     try:
         # Atomic write: write to temp file then replace to avoid partial-write corruption

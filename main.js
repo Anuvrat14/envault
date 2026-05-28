@@ -20,9 +20,28 @@ autoUpdater.autoInstallOnAppQuit = true; // install on next quit
 // On every launch (including after an auto-update), copy the bundled
 // dotward_cli.py to the user's PATH so the CLI stays in sync automatically.
 function syncCLI() {
-    if (process.platform === 'win32') return; // Windows: skip (PowerShell path TBD)
     const fs  = require('fs');
     const os  = require('os');
+
+    // ── Windows: copy mcp_server.py to ~/.local/bin/ ──────────────────────
+    if (process.platform === 'win32') {
+        const mcpSrc = app.isPackaged
+            ? path.join(process.resourcesPath, 'mcp_server.py')
+            : path.join(__dirname, 'mcp_server.py');
+        if (!fs.existsSync(mcpSrc)) {
+            log.warn('[cli] mcp_server.py not found, skipping Windows sync');
+            return;
+        }
+        const destDir = path.join(os.homedir(), '.local', 'bin');
+        try {
+            fs.mkdirSync(destDir, { recursive: true });
+            fs.copyFileSync(mcpSrc, path.join(destDir, 'mcp_server.py'));
+            log.info('[cli] Synced mcp_server.py → ' + destDir);
+        } catch (e) {
+            log.warn('[cli] Could not sync mcp_server.py on Windows: ' + e.message);
+        }
+        return;
+    }
 
     const cliSrc = app.isPackaged
         ? path.join(process.resourcesPath, 'dotward_cli.py')
