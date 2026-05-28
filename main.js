@@ -1,4 +1,7 @@
 const { app, BrowserWindow, shell, Notification, dialog, ipcMain } = require('electron');
+
+// Suppress GPU shader cache permission errors on Windows
+app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
 const { autoUpdater } = require('electron-updater');
 const { spawn } = require('child_process');
 const path  = require('path');

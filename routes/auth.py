@@ -2,6 +2,8 @@
 Auth routes — setup (first run), unlock, lock, reset.
 The derived encryption key is stored in the Flask session (server-side memory only).
 """
+import os
+
 from flask import (Blueprint, redirect, render_template, request,
                    session, url_for, flash)
 
@@ -9,6 +11,18 @@ from crypto import (derive_key, generate_salt, hash_password,
                     generate_backup_codes, wrap_key_with_code, unwrap_key_with_code)
 from models import db, AppConfig, Project, EnvVariable
 import cli_state
+
+
+def _write_cli_token(token: str) -> None:
+    """Auto-write CLI token to ~/.dotward/cli_token so mcp_server.py finds it."""
+    try:
+        token_dir  = os.path.join(os.path.expanduser('~'), '.dotward')
+        token_path = os.path.join(token_dir, 'cli_token')
+        os.makedirs(token_dir, exist_ok=True)
+        with open(token_path, 'w', encoding='utf-8') as f:
+            f.write(token + '\n')
+    except Exception:
+        pass  # non-fatal — user can still download manually
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -81,6 +95,9 @@ def unlock():
             session['enc_key'] = enc_key.hex()
             session.permanent  = True
             cli_state.set_key(config.cli_token or '', enc_key.hex())
+            # Ensure token file exists on disk (catches fresh installs / reinstalls)
+            if config.cli_token:
+                _write_cli_token(config.cli_token)
             return redirect(url_for('projects.dashboard'))
         else:
             error = 'Incorrect master password.'
@@ -221,7 +238,9 @@ def generate_cli_token():
     db.session.commit()
     # Update in-memory state immediately
     cli_state.set_key(token, session['enc_key'])
-    flash('New CLI token generated. Download it from Settings.', 'success')
+    # Auto-write to disk so mcp_server.py picks it up without manual download
+    _write_cli_token(token)
+    flash('New CLI token generated.', 'success')
     return redirect(url_for('auth.settings'))
 
 
