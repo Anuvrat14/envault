@@ -67,35 +67,61 @@ def stop() -> None:
     _running = False
 
 
+def _log(msg: str) -> None:
+    """All watcher logging goes to stderr — stdout is reserved for MCP JSON-RPC."""
+    print(f'[watcher] {msg}', file=sys.stderr, flush=True)
+
+
+def _is_vault_unlocked() -> bool:
+    """Check vault state. Uses in-memory cli_state when inside Flask process,
+    falls back to HTTP check (for Windows subprocess edge cases)."""
+    import cli_state
+    if cli_state.is_unlocked():
+        return True
+    # Fallback: HTTP check using token file (handles subprocess context on Windows)
+    try:
+        import urllib.request
+        token_path = os.path.join(os.path.expanduser('~'), '.dotward', 'cli_token')
+        if not os.path.exists(token_path):
+            return False
+        with open(token_path, encoding='utf-8') as f:
+            token = f.read().strip()
+        if not token:
+            return False
+        req = urllib.request.Request('http://127.0.0.1:7331/api/v1/status')
+        req.add_header('X-Dotward-Token', token)
+        with urllib.request.urlopen(req, timeout=2) as r:
+            return r.status == 200
+    except Exception:
+        return False
+
+
 def _loop() -> None:
     """Main watcher loop — runs every WATCHER_INTERVAL seconds."""
     while _running:
         try:
-            import cli_state
-            unlocked = cli_state.is_unlocked()
-            print(f'[watcher] tick — unlocked={unlocked}', flush=True)
+            unlocked = _is_vault_unlocked()
+            _log(f'tick — unlocked={unlocked}')
             _scan_all()
         except Exception as e:
-            print(f'[watcher] scan error: {e}', flush=True)
+            _log(f'scan error: {e}')
         time.sleep(_WATCHER_INTERVAL)
 
 
 def _scan_all() -> None:
     """Scan all AI config paths and watched dirs for exposed secrets."""
     from dotward_cli import _SCAN_PATTERNS, _DEEP_PATTERNS, _entropy, _ASSIGN_RE, _is_binary_file
-    import cli_state
 
     # Only scan if vault is unlocked
-    if not cli_state.is_unlocked():
-        print('[watcher] vault locked — skipping scan', flush=True)
+    if not _is_vault_unlocked():
+        _log('vault locked — skipping scan')
         return
 
     paths = _ai_config_paths()
-    print(f'[watcher] scanning {len(paths)} paths...', flush=True)
+    _log(f'scanning {len(paths)} paths...')
     for p in paths:
-        exists = os.path.exists(p)
-        if exists:
-            print(f'[watcher] found: {p}', flush=True)
+        if os.path.exists(p):
+            _log(f'found: {p}')
 
     patterns = _SCAN_PATTERNS + _DEEP_PATTERNS
     entropy_threshold = 4.2
