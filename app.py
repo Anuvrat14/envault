@@ -99,49 +99,33 @@ def _migrate_db(app):
 
 
 def _get_version() -> str:
-    """Read version — tries multiple sources in order of reliability.
+    """Read version from app.asar (always reflects installed Electron version),
+    falling back to _version.py baked in at build time."""
+    import sys as _sys, re, json
 
-    Priority:
-    1. app-update.yml next to the binary (written by electron-updater, always current)
-    2. _version.py baked in by PyInstaller at build time
-    3. package.json in the app directory
-    4. Hard fallback
-    """
-    import json, re
-
-    # 1. app-update.yml lives next to the Electron asar and reflects the
-    #    installed Electron version — most reliable after auto-updates.
-    try:
-        base = os.path.dirname(os.path.abspath(__file__))
-        # When frozen: __file__ is inside _MEIPASS; resources dir is one level up
-        resources_dir = base if not getattr(__import__('sys'), 'frozen', False) \
-            else os.path.join(base, '..', '..')
-        yml_path = os.path.join(resources_dir, 'app-update.yml')
-        if not os.path.exists(yml_path):
-            # Try sibling of the binary (packaged macOS layout)
-            yml_path = os.path.join(os.path.dirname(base), '..', 'Resources', 'app-update.yml')
-        if os.path.exists(yml_path):
-            # Parse the asar to get version — quicker: read package.json from asar
-            asar_path = os.path.join(os.path.dirname(yml_path), 'app.asar')
+    # When frozen, sys.executable = .../Contents/Resources/dotward-server
+    # app.asar lives in the same Resources folder — always reflects the
+    # current Electron installer version even after delta auto-updates.
+    if getattr(_sys, 'frozen', False):
+        try:
+            resources_dir = os.path.dirname(_sys.executable)
+            asar_path = os.path.join(resources_dir, 'app.asar')
             if os.path.exists(asar_path):
-                # asar is a binary format; package.json starts after a small header
-                # Use electron's built-in by shelling out, or parse manually
                 with open(asar_path, 'rb') as f:
-                    data = f.read(65536)  # header is always < 64KB
+                    data = f.read(65536)
                 m = re.search(rb'"version"\s*:\s*"([^"]+)"', data)
                 if m:
                     return m.group(1).decode()
-    except Exception:
-        pass
+        except Exception:
+            pass
 
-    # 2. _version.py baked in at PyInstaller build time
+    # Dev / fallback: _version.py written by release.sh before PyInstaller
     try:
         from _version import __version__
         return __version__
     except ImportError:
         pass
 
-    # 3. package.json fallback
     try:
         pkg = os.path.join(os.path.dirname(__file__), 'package.json')
         with open(pkg) as f:
