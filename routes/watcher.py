@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
+import subprocess
 import sys
 
 from flask import Blueprint, jsonify, render_template, request, session
@@ -150,6 +152,26 @@ def _get_dotward_bin():
     return next((p for p in candidates if os.path.exists(p)), candidates[0])
 
 
+def _find_claude_cli():
+    """Find the claude CLI binary, platform-aware."""
+    # shutil.which respects PATH — fastest check
+    found = shutil.which('claude') or shutil.which('claude.exe')
+    if found:
+        return found
+    home = os.path.expanduser('~')
+    if sys.platform == 'win32':
+        candidates = [
+            os.path.join(home, '.local', 'bin', 'claude.exe'),
+            os.path.join(home, 'AppData', 'Local', 'Programs', 'claude', 'claude.exe'),
+        ]
+    else:
+        candidates = [
+            '/usr/local/bin/claude',
+            os.path.join(home, '.local', 'bin', 'claude'),
+        ]
+    return next((p for p in candidates if os.path.exists(p)), None)
+
+
 def _get_config_paths():
     """Return config file paths for each AI tool, platform-aware."""
     home = os.path.expanduser('~')
@@ -180,6 +202,29 @@ def api_mcp_connect(tool):
     if tool not in CONFIG_PATHS:
         return jsonify({'error': 'Unknown tool'}), 400
 
+    # ── Claude Code CLI: use `claude mcp add` so Claude writes its own config ──
+    if tool == 'claude-code':
+        claude_bin = _find_claude_cli()
+        if not claude_bin:
+            return jsonify({'error': 'claude CLI not found. Install Claude Code first.'}), 400
+        try:
+            result = subprocess.run(
+                [claude_bin, 'mcp', 'add', 'dotward', '-s', 'user', '--', dotward_bin, 'mcp'],
+                capture_output=True, text=True, timeout=15
+            )
+            if result.returncode == 0:
+                return jsonify({'ok': True,
+                                'message': 'Connected! Run claude mcp list to verify, then restart Claude Code.'})
+            # If already exists, that's fine too
+            if 'already' in (result.stdout + result.stderr).lower():
+                return jsonify({'ok': True, 'message': 'Already connected. Restart Claude Code to pick up any changes.'})
+            return jsonify({'error': result.stderr or result.stdout or 'claude mcp add failed'}), 500
+        except subprocess.TimeoutExpired:
+            return jsonify({'error': 'Timed out running claude mcp add'}), 500
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    # ── All other tools: write JSON config directly ────────────────────────
     dotward_entry = {
         'command': dotward_bin,
         'args': ['mcp']
@@ -188,7 +233,6 @@ def api_mcp_connect(tool):
     config_path = CONFIG_PATHS[tool]
     os.makedirs(os.path.dirname(config_path), exist_ok=True)
 
-    # Load existing config or start fresh
     config = {}
     if os.path.exists(config_path):
         try:
@@ -197,7 +241,6 @@ def api_mcp_connect(tool):
         except Exception:
             config = {}
 
-    # Merge in dotward entry
     if 'mcpServers' not in config:
         config['mcpServers'] = {}
     config['mcpServers']['dotward'] = dotward_entry
@@ -217,15 +260,37 @@ def api_mcp_status():
     """Check which AI tools are already configured."""
     CONFIG_PATHS = _get_config_paths()
     status = {}
+
     for name, path in CONFIG_PATHS.items():
         connected = False
-        if os.path.exists(path):
-            try:
-                with open(path) as f:
-                    cfg = json.load(f)
-                connected = 'dotward' in cfg.get('mcpServers', {})
-            except Exception:
-                pass
+        if name == 'claude-code':
+            # Ask claude CLI directly — most reliable source of truth
+            claude_bin = _find_claude_cli()
+            if claude_bin:
+                try:
+                    result = subprocess.run(
+                        [claude_bin, 'mcp', 'list'],
+                        capture_output=True, text=True, timeout=8
+                    )
+                    connected = 'dotward' in result.stdout
+                except Exception:
+                    pass
+            # Fallback: check the settings.json file
+            if not connected and os.path.exists(path):
+                try:
+                    with open(path) as f:
+                        cfg = json.load(f)
+                    connected = 'dotward' in cfg.get('mcpServers', {})
+                except Exception:
+                    pass
+        else:
+            if os.path.exists(path):
+                try:
+                    with open(path) as f:
+                        cfg = json.load(f)
+                    connected = 'dotward' in cfg.get('mcpServers', {})
+                except Exception:
+                    pass
         status[name] = connected
 
     status['dotward_bin'] = _get_dotward_bin()
