@@ -23,15 +23,16 @@
   nsExec::ExecToLog 'cmd /C claude mcp add dotward -s user "$0" mcp'
   Pop $1
 
-  ; Fallback: write directly to ~/.claude/settings.json (works even if claude not in PATH)
+  ; Fallback: write directly to ~/.claude/settings.json via PowerShell
+  ; Note: $$ is the NSIS escape for a literal $ passed to the shell
   nsExec::ExecToLog 'powershell -NoProfile -NonInteractive -WindowStyle Hidden -Command \
-    "$cfg = Join-Path $env:USERPROFILE \".claude\settings.json\"; \
-    $dir = Split-Path $cfg; \
-    if (!(Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }; \
-    $obj = if (Test-Path $cfg) { try { Get-Content $cfg -Raw -Encoding UTF8 | ConvertFrom-Json } catch { [PSCustomObject]@{} } } else { [PSCustomObject]@{} }; \
-    if (-not ($obj.PSObject.Properties[\"mcpServers\"])) { $obj | Add-Member -MemberType NoteProperty -Name \"mcpServers\" -Value ([PSCustomObject]@{}) }; \
-    $entry = [PSCustomObject]@{ command = \"$env:LOCALAPPDATA\Programs\dotward\resources\dotward-server.exe\"; args = @(\"mcp\") }; \
-    $obj.mcpServers | Add-Member -MemberType NoteProperty -Name \"dotward\" -Value $entry -Force; \
-    $obj | ConvertTo-Json -Depth 10 | Set-Content -Path $cfg -Encoding UTF8"'
+    "$$p = Join-Path $$env:USERPROFILE \".claude\settings.json\"; \
+    $$d = Split-Path $$p; \
+    if (!(Test-Path $$d)) { New-Item -ItemType Directory -Path $$d -Force | Out-Null }; \
+    $$o = if (Test-Path $$p) { try { Get-Content $$p -Raw -Encoding UTF8 | ConvertFrom-Json } catch { [PSCustomObject]@{} } } else { [PSCustomObject]@{} }; \
+    if (-not ($$o.PSObject.Properties[\"mcpServers\"])) { $$o | Add-Member -MemberType NoteProperty -Name \"mcpServers\" -Value ([PSCustomObject]@{}) }; \
+    $$e = [PSCustomObject]@{ command = \"$$env:LOCALAPPDATA\Programs\dotward\resources\dotward-server.exe\"; args = @(\"mcp\") }; \
+    $$o.mcpServers | Add-Member -MemberType NoteProperty -Name \"dotward\" -Value $$e -Force; \
+    $$o | ConvertTo-Json -Depth 10 | Set-Content -Path $$p -Encoding UTF8"'
   Pop $1
 !macroend
