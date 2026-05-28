@@ -119,6 +119,9 @@
             <button class="mcp-connect-btn" id="btn-claude" onclick="connectTool('claude', this)">
                 <i class="fas fa-bolt me-1"></i> Connect Claude Desktop
             </button>
+            <button class="mcp-connect-btn" id="btn-claude-code" onclick="connectTool('claude-code', this)">
+                <i class="fas fa-terminal me-1"></i> Connect Claude Code
+            </button>
             <button class="mcp-connect-btn" id="btn-cursor" onclick="connectTool('cursor', this)">
                 <i class="fas fa-bolt me-1"></i> Connect Cursor
             </button>
@@ -498,16 +501,19 @@ function _checkMcpStatus() {
             if (status.dotward_bin) _dotwardBin = status.dotward_bin;
             const dot  = document.getElementById('mcp-dot');
             const text = document.getElementById('mcp-status-text');
-            const connected = Object.values(status).some(v => v);
-            const names = Object.entries(status).filter(([,v]) => v).map(([k]) => k === 'claude' ? 'Claude Desktop' : k.charAt(0).toUpperCase() + k.slice(1));
+            const toolLabel = k => ({ 'claude': 'Claude Desktop', 'claude-code': 'Claude Code' }[k] || k.charAt(0).toUpperCase() + k.slice(1));
+            const skipKeys = new Set(['dotward_bin', 'platform']);
+            const connected = Object.entries(status).some(([k,v]) => !skipKeys.has(k) && v === true);
+            const names = Object.entries(status).filter(([k,v]) => !skipKeys.has(k) && v === true).map(([k]) => toolLabel(k));
             if (connected) {
                 dot.className = 'mcp-status-dot connected';
                 text.textContent = names.join(', ') + ' connected';
                 // Update buttons
                 Object.entries(status).forEach(([tool, isConnected]) => {
+                    if (skipKeys.has(tool)) return;
                     const btn = document.getElementById('btn-' + tool);
                     if (btn && isConnected) {
-                        btn.innerHTML = '<i class="fas fa-check me-1"></i> ' + (tool === 'claude' ? 'Claude Desktop' : tool.charAt(0).toUpperCase() + tool.slice(1)) + ' ✓';
+                        btn.innerHTML = '<i class="fas fa-check me-1"></i> ' + toolLabel(tool) + ' ✓';
                         btn.style.background = 'rgba(74,222,128,.1)';
                         btn.style.borderColor = 'rgba(74,222,128,.25)';
                         btn.style.color = '#4ade80';

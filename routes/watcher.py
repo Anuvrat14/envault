@@ -133,33 +133,57 @@ def api_mcp_toggle(project_id):
     return jsonify({'ok': True, 'mcp_enabled': p.mcp_enabled})
 
 
+def _get_dotward_bin():
+    """Return the dotward binary path, platform-aware."""
+    home = os.path.expanduser('~')
+    if sys.platform == 'win32':
+        candidates = [
+            os.path.join(home, '.local', 'bin', 'dotward.exe'),
+            os.path.join(home, 'AppData', 'Local', 'Programs', 'dotward', 'dotward.exe'),
+            os.path.join(home, '.dotward', 'bin', 'dotward.exe'),
+        ]
+    else:
+        candidates = [
+            '/usr/local/bin/dotward',
+            os.path.join(home, '.dotward', 'bin', 'dotward'),
+        ]
+    return next((p for p in candidates if os.path.exists(p)), candidates[0])
+
+
+def _get_config_paths():
+    """Return config file paths for each AI tool, platform-aware."""
+    home = os.path.expanduser('~')
+    if sys.platform == 'win32':
+        appdata = os.environ.get('APPDATA', os.path.join(home, 'AppData', 'Roaming'))
+        return {
+            'claude':      os.path.join(appdata, 'Claude', 'claude_desktop_config.json'),
+            'claude-code': os.path.join(home, '.claude', 'settings.json'),
+            'cursor':      os.path.join(home, '.cursor', 'mcp.json'),
+        }
+    else:
+        return {
+            'claude':      os.path.join(home, 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json'),
+            'claude-code': os.path.join(home, '.claude', 'settings.json'),
+            'cursor':      os.path.join(home, '.cursor', 'mcp.json'),
+        }
+
+
 @watcher_bp.route('/api/mcp/connect/<tool>', methods=['POST'])
 def api_mcp_connect(tool):
     """Write dotward MCP entry into the AI tool's config file."""
     err = _require_unlock()
     if err: return err
 
-    home = os.path.expanduser('~')
+    dotward_bin = _get_dotward_bin()
+    CONFIG_PATHS = _get_config_paths()
 
-    # Find where syncCLI actually installed the binary
-    candidates = [
-        '/usr/local/bin/dotward',
-        os.path.join(home, '.dotward', 'bin', 'dotward'),
-    ]
-    dotward_bin = next((p for p in candidates if os.path.exists(p)), candidates[0])
+    if tool not in CONFIG_PATHS:
+        return jsonify({'error': 'Unknown tool'}), 400
 
     dotward_entry = {
         'command': dotward_bin,
         'args': ['mcp']
     }
-
-    CONFIG_PATHS = {
-        'claude': os.path.join(home, 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json'),
-        'cursor': os.path.join(home, '.cursor', 'mcp.json'),
-    }
-
-    if tool not in CONFIG_PATHS:
-        return jsonify({'error': 'Unknown tool'}), 400
 
     config_path = CONFIG_PATHS[tool]
     os.makedirs(os.path.dirname(config_path), exist_ok=True)
@@ -181,8 +205,9 @@ def api_mcp_connect(tool):
     try:
         with open(config_path, 'w') as f:
             json.dump(config, f, indent=2)
+        label = tool.replace('-', ' ').title()
         return jsonify({'ok': True, 'path': config_path,
-                        'message': f'Connected! Restart {tool.capitalize()} to activate.'})
+                        'message': f'Connected! Restart {label} to activate.'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -190,13 +215,9 @@ def api_mcp_connect(tool):
 @watcher_bp.route('/api/mcp/status')
 def api_mcp_status():
     """Check which AI tools are already configured."""
-    home = os.path.expanduser('~')
-    tools = {
-        'claude': os.path.join(home, 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json'),
-        'cursor': os.path.join(home, '.cursor', 'mcp.json'),
-    }
+    CONFIG_PATHS = _get_config_paths()
     status = {}
-    for name, path in tools.items():
+    for name, path in CONFIG_PATHS.items():
         connected = False
         if os.path.exists(path):
             try:
@@ -207,13 +228,8 @@ def api_mcp_status():
                 pass
         status[name] = connected
 
-    # Also return the actual binary path so the UI can show it
-    candidates = [
-        '/usr/local/bin/dotward',
-        os.path.join(home, '.dotward', 'bin', 'dotward'),
-    ]
-    dotward_bin = next((p for p in candidates if os.path.exists(p)), candidates[0])
-    status['dotward_bin'] = dotward_bin
+    status['dotward_bin'] = _get_dotward_bin()
+    status['platform'] = sys.platform
     return jsonify(status)
 
 
