@@ -99,19 +99,57 @@ def _migrate_db(app):
 
 
 def _get_version() -> str:
-    """Read version from _version.py (injected at build time), then package.json, then fallback."""
+    """Read version — tries multiple sources in order of reliability.
+
+    Priority:
+    1. app-update.yml next to the binary (written by electron-updater, always current)
+    2. _version.py baked in by PyInstaller at build time
+    3. package.json in the app directory
+    4. Hard fallback
+    """
+    import json, re
+
+    # 1. app-update.yml lives next to the Electron asar and reflects the
+    #    installed Electron version — most reliable after auto-updates.
+    try:
+        base = os.path.dirname(os.path.abspath(__file__))
+        # When frozen: __file__ is inside _MEIPASS; resources dir is one level up
+        resources_dir = base if not getattr(__import__('sys'), 'frozen', False) \
+            else os.path.join(base, '..', '..')
+        yml_path = os.path.join(resources_dir, 'app-update.yml')
+        if not os.path.exists(yml_path):
+            # Try sibling of the binary (packaged macOS layout)
+            yml_path = os.path.join(os.path.dirname(base), '..', 'Resources', 'app-update.yml')
+        if os.path.exists(yml_path):
+            # Parse the asar to get version — quicker: read package.json from asar
+            asar_path = os.path.join(os.path.dirname(yml_path), 'app.asar')
+            if os.path.exists(asar_path):
+                # asar is a binary format; package.json starts after a small header
+                # Use electron's built-in by shelling out, or parse manually
+                with open(asar_path, 'rb') as f:
+                    data = f.read(65536)  # header is always < 64KB
+                m = re.search(rb'"version"\s*:\s*"([^"]+)"', data)
+                if m:
+                    return m.group(1).decode()
+    except Exception:
+        pass
+
+    # 2. _version.py baked in at PyInstaller build time
     try:
         from _version import __version__
         return __version__
     except ImportError:
         pass
-    import json
+
+    # 3. package.json fallback
     try:
         pkg = os.path.join(os.path.dirname(__file__), 'package.json')
         with open(pkg) as f:
             return json.load(f).get('version', '1.0.0')
     except Exception:
-        return '1.0.0'
+        pass
+
+    return '1.0.0'
 
 
 def _get_or_create_secret(data_dir: str) -> str:
