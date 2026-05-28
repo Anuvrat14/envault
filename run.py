@@ -15,6 +15,25 @@ if getattr(sys, 'frozen', False):
 else:
     base_dir = os.path.dirname(os.path.abspath(__file__))
 
+# ── MCP subcommand — must start before Flask/watcher ──────────────────────
+# When the AI tool runs `dotward-server mcp`, intercept here and go straight
+# to the MCP stdio server. Do NOT start Flask or the watcher thread.
+if len(sys.argv) > 1 and sys.argv[1] == 'mcp':
+    try:
+        import mcp_server
+        mcp_server.run()
+    except ImportError:
+        import importlib.util
+        spec_path = os.path.join(base_dir, 'mcp_server.py')
+        if not os.path.exists(spec_path):
+            sys.stderr.write('mcp_server.py not found\n')
+            sys.exit(1)
+        spec = importlib.util.spec_from_file_location('mcp_server', spec_path)
+        mod  = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mod.run()
+    sys.exit(0)
+
 # ── Create and run app ─────────────────────────────────────────────────────
 from app import create_app
 

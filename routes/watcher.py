@@ -139,14 +139,14 @@ def _get_mcp_entry():
     """Return {'command': ..., 'args': [...]} for the MCP server, platform-aware."""
     home = os.path.expanduser('~')
     if sys.platform == 'win32':
-        # On Windows the Electron app itself is dotward.exe — we can't use it as MCP server.
-        # Instead, run mcp_server.py directly with Python.
-        mcp_script_candidates = [
-            os.path.join(home, '.local', 'bin', 'mcp_server.py'),
+        # Use dotward-server.exe mcp — run.py now intercepts 'mcp' before Flask starts
+        appdata_local = os.environ.get('LOCALAPPDATA', os.path.join(home, 'AppData', 'Local'))
+        candidates = [
+            os.path.join(appdata_local, 'Programs', 'dotward', 'resources', 'dotward-server.exe'),
+            os.path.join(appdata_local, 'Programs', 'Dotward', 'resources', 'dotward-server.exe'),
         ]
-        mcp_script = next((p for p in mcp_script_candidates if os.path.exists(p)), mcp_script_candidates[0])
-        python_bin = shutil.which('python') or shutil.which('python3') or 'python'
-        return {'command': python_bin, 'args': [mcp_script]}
+        server_exe = next((p for p in candidates if os.path.exists(p)), candidates[0])
+        return {'command': server_exe, 'args': ['mcp']}
     else:
         candidates = [
             '/usr/local/bin/dotward',
@@ -157,12 +157,8 @@ def _get_mcp_entry():
 
 
 def _get_dotward_bin():
-    """Return the dotward binary path (macOS/Linux) or mcp_server.py path (Windows)."""
-    entry = _get_mcp_entry()
-    # For status display: return the meaningful path
-    if sys.platform == 'win32':
-        return entry['args'][0] if entry['args'] else entry['command']
-    return entry['command']
+    """Return the MCP binary path for status display."""
+    return _get_mcp_entry()['command']
 
 
 def _find_claude_cli():
