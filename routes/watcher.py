@@ -181,12 +181,14 @@ def _get_config_paths():
             'claude':      os.path.join(appdata, 'Claude', 'claude_desktop_config.json'),
             'claude-code': os.path.join(home, '.claude', 'settings.json'),
             'cursor':      os.path.join(home, '.cursor', 'mcp.json'),
+            'windsurf':    os.path.join(home, '.codeium', 'windsurf', 'mcp_config.json'),
         }
     else:
         return {
             'claude':      os.path.join(home, 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json'),
             'claude-code': os.path.join(home, '.claude', 'settings.json'),
             'cursor':      os.path.join(home, '.cursor', 'mcp.json'),
+            'windsurf':    os.path.join(home, '.codeium', 'windsurf', 'mcp_config.json'),
         }
 
 
@@ -208,9 +210,12 @@ def api_mcp_connect(tool):
         if not claude_bin:
             return jsonify({'error': 'claude CLI not found. Install Claude Code first.'}), 400
         try:
+            kwargs = dict(capture_output=True, text=True, timeout=15)
+            if sys.platform == 'win32':
+                kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
             result = subprocess.run(
                 [claude_bin, 'mcp', 'add', 'dotward', '-s', 'user', '--', dotward_bin, 'mcp'],
-                capture_output=True, text=True, timeout=15
+                **kwargs
             )
             if result.returncode == 0:
                 return jsonify({'ok': True,
@@ -236,7 +241,7 @@ def api_mcp_connect(tool):
     config = {}
     if os.path.exists(config_path):
         try:
-            with open(config_path) as f:
+            with open(config_path, 'r', encoding='utf-8') as f:
                 config = json.load(f)
         except Exception:
             config = {}
@@ -246,8 +251,11 @@ def api_mcp_connect(tool):
     config['mcpServers']['dotward'] = dotward_entry
 
     try:
-        with open(config_path, 'w') as f:
+        # Atomic write: write to temp file then replace to avoid partial-write corruption
+        tmp_path = config_path + '.tmp'
+        with open(tmp_path, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2)
+        os.replace(tmp_path, config_path)
         label = tool.replace('-', ' ').title()
         return jsonify({'ok': True, 'path': config_path,
                         'message': f'Connected! Restart {label} to activate.'})
@@ -268,17 +276,17 @@ def api_mcp_status():
             claude_bin = _find_claude_cli()
             if claude_bin:
                 try:
-                    result = subprocess.run(
-                        [claude_bin, 'mcp', 'list'],
-                        capture_output=True, text=True, timeout=8
-                    )
+                    kw = dict(capture_output=True, text=True, timeout=8)
+                    if sys.platform == 'win32':
+                        kw['creationflags'] = subprocess.CREATE_NO_WINDOW
+                    result = subprocess.run([claude_bin, 'mcp', 'list'], **kw)
                     connected = 'dotward' in result.stdout
                 except Exception:
                     pass
             # Fallback: check the settings.json file
             if not connected and os.path.exists(path):
                 try:
-                    with open(path) as f:
+                    with open(path, encoding='utf-8') as f:
                         cfg = json.load(f)
                     connected = 'dotward' in cfg.get('mcpServers', {})
                 except Exception:
@@ -286,7 +294,7 @@ def api_mcp_status():
         else:
             if os.path.exists(path):
                 try:
-                    with open(path) as f:
+                    with open(path, encoding='utf-8') as f:
                         cfg = json.load(f)
                     connected = 'dotward' in cfg.get('mcpServers', {})
                 except Exception:

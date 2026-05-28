@@ -106,29 +106,25 @@
                 <span id="mcp-status-text">Not connected</span>
             </span>
         </div>
-        <p>Let Claude, Cursor, and other AI tools read secrets straight from your vault. No more pasting keys into chat.</p>
+        <p style="font-size:.8rem; color:rgba(255,255,255,.45); margin-bottom:1rem;">Keep Dotward open and unlocked. Every secret request requires your approval.</p>
 
-        <!-- Step-by-step -->
-        <ul class="mcp-steps">
-            <li>Pick your AI tool below and copy the config snippet into its settings file.</li>
-            <li>Restart the AI tool — it will connect to Dotward automatically.</li>
-            <li>Keep Dotward open and unlocked. Every secret request shows up here for your approval.</li>
-        </ul>
-
-        <div style="display:flex; gap:.6rem; flex-wrap:wrap; margin-top:1rem;">
-            <button class="mcp-connect-btn" id="btn-claude" onclick="connectTool('claude', this)">
-                <i class="fas fa-bolt me-1"></i> Connect Claude Desktop
+        <div style="display:flex; gap:.6rem; align-items:center; flex-wrap:wrap;">
+            <select id="tool-select" style="background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); color:rgba(255,255,255,.8); border-radius:8px; padding:.45rem .8rem; font-size:.8rem; cursor:pointer; outline:none;">
+                <option value="claude">Claude Desktop</option>
+                <option value="claude-code">Claude Code (CLI)</option>
+                <option value="cursor">Cursor</option>
+                <option value="windsurf">Windsurf</option>
+            </select>
+            <button id="btn-connect-main" onclick="connectSelected()" class="mcp-connect-btn" style="margin:0;">
+                <i class="fas fa-plug me-1"></i> Connect
             </button>
-            <button class="mcp-connect-btn" id="btn-claude-code" onclick="connectTool('claude-code', this)">
-                <i class="fas fa-terminal me-1"></i> Connect Claude Code
-            </button>
-            <button class="mcp-connect-btn" id="btn-cursor" onclick="connectTool('cursor', this)">
-                <i class="fas fa-bolt me-1"></i> Connect Cursor
-            </button>
-            <button class="mcp-connect-btn" id="btn-generic" onclick="showMcpConfig('generic', this)" style="opacity:.7;">
-                <i class="fas fa-code"></i> Manual / Other
+            <button onclick="showMcpConfig('generic', this)" style="background:none; border:1px solid rgba(255,255,255,.1); color:rgba(255,255,255,.35); border-radius:8px; padding:.45rem .8rem; font-size:.75rem; cursor:pointer;">
+                Manual / Other
             </button>
         </div>
+
+        <!-- per-tool status pills -->
+        <div id="tool-status-pills" style="display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.7rem;"></div>
 
         <div id="mcp-connect-msg" style="display:none; margin-top:.7rem; font-size:.8rem; padding:.5rem .8rem; border-radius:7px;"></div>
 
@@ -461,28 +457,28 @@ function _pollAlerts() {
         }).catch(() => {});
 }
 
-function connectTool(tool, btn) {
-    const msg = document.getElementById('mcp-connect-msg');
+const _toolLabel = k => ({ 'claude': 'Claude Desktop', 'claude-code': 'Claude Code', 'cursor': 'Cursor', 'windsurf': 'Windsurf' }[k] || k);
+const _skipKeys  = new Set(['dotward_bin', 'platform']);
+
+function connectSelected() {
+    const tool = document.getElementById('tool-select').value;
+    const btn  = document.getElementById('btn-connect-main');
+    const msg  = document.getElementById('mcp-connect-msg');
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Connecting…';
     fetch(`/api/mcp/connect/${tool}`, { method: 'POST' })
         .then(r => r.json())
         .then(data => {
             btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-plug me-1"></i> Connect';
+            msg.style.display = '';
             if (data.ok) {
-                btn.innerHTML = '<i class="fas fa-check me-1"></i> Connected!';
-                btn.style.background = 'rgba(74,222,128,.15)';
-                btn.style.borderColor = 'rgba(74,222,128,.3)';
-                btn.style.color = '#4ade80';
-                msg.style.display = '';
                 msg.style.background = 'rgba(74,222,128,.08)';
                 msg.style.border = '1px solid rgba(74,222,128,.2)';
                 msg.style.color = '#4ade80';
                 msg.innerHTML = `<i class="fas fa-check-circle me-1"></i>${data.message}`;
                 _checkMcpStatus();
             } else {
-                btn.innerHTML = '<i class="fas fa-bolt me-1"></i> Connect ' + tool;
-                msg.style.display = '';
                 msg.style.background = 'rgba(231,76,60,.08)';
                 msg.style.border = '1px solid rgba(231,76,60,.2)';
                 msg.style.color = '#f87171';
@@ -490,8 +486,14 @@ function connectTool(tool, btn) {
             }
         }).catch(() => {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-bolt me-1"></i> Connect ' + tool;
+            btn.innerHTML = '<i class="fas fa-plug me-1"></i> Connect';
         });
+}
+
+// keep old connectTool() working in case anything else calls it
+function connectTool(tool, btn) {
+    document.getElementById('tool-select').value = tool;
+    connectSelected();
 }
 
 function _checkMcpStatus() {
@@ -499,29 +501,28 @@ function _checkMcpStatus() {
         .then(r => r.json())
         .then(status => {
             if (status.dotward_bin) _dotwardBin = status.dotward_bin;
-            const dot  = document.getElementById('mcp-dot');
-            const text = document.getElementById('mcp-status-text');
-            const toolLabel = k => ({ 'claude': 'Claude Desktop', 'claude-code': 'Claude Code' }[k] || k.charAt(0).toUpperCase() + k.slice(1));
-            const skipKeys = new Set(['dotward_bin', 'platform']);
-            const connected = Object.entries(status).some(([k,v]) => !skipKeys.has(k) && v === true);
-            const names = Object.entries(status).filter(([k,v]) => !skipKeys.has(k) && v === true).map(([k]) => toolLabel(k));
-            if (connected) {
-                dot.className = 'mcp-status-dot connected';
-                text.textContent = names.join(', ') + ' connected';
-                // Update buttons
-                Object.entries(status).forEach(([tool, isConnected]) => {
-                    if (skipKeys.has(tool)) return;
-                    const btn = document.getElementById('btn-' + tool);
-                    if (btn && isConnected) {
-                        btn.innerHTML = '<i class="fas fa-check me-1"></i> ' + toolLabel(tool) + ' ✓';
-                        btn.style.background = 'rgba(74,222,128,.1)';
-                        btn.style.borderColor = 'rgba(74,222,128,.25)';
-                        btn.style.color = '#4ade80';
-                    }
-                });
-            } else {
-                dot.className = 'mcp-status-dot disconnected';
-                text.textContent = 'Not connected';
+            const dot   = document.getElementById('mcp-dot');
+            const text  = document.getElementById('mcp-status-text');
+            const pills = document.getElementById('tool-status-pills');
+            const anyConnected = Object.entries(status).some(([k,v]) => !_skipKeys.has(k) && v === true);
+
+            // header dot
+            dot.className  = 'mcp-status-dot ' + (anyConnected ? 'connected' : 'disconnected');
+            text.textContent = anyConnected
+                ? Object.entries(status).filter(([k,v]) => !_skipKeys.has(k) && v).map(([k]) => _toolLabel(k)).join(', ') + ' connected'
+                : 'Not connected';
+
+            // status pills
+            if (pills) {
+                pills.innerHTML = Object.entries(status)
+                    .filter(([k]) => !_skipKeys.has(k))
+                    .map(([k, v]) => {
+                        const color = v ? 'rgba(74,222,128,.15)' : 'rgba(255,255,255,.05)';
+                        const border = v ? 'rgba(74,222,128,.3)' : 'rgba(255,255,255,.1)';
+                        const tc = v ? '#4ade80' : 'rgba(255,255,255,.3)';
+                        const icon = v ? '✓' : '·';
+                        return `<span style="background:${color};border:1px solid ${border};color:${tc};border-radius:20px;padding:2px 10px;font-size:.72rem;">${icon} ${_toolLabel(k)}</span>`;
+                    }).join('');
             }
         }).catch(() => {});
 }
